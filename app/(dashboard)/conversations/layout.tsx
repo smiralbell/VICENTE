@@ -1,12 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import ConversationsSidebar from "./ConversationsSidebar";
 
 type Props = {
   children: React.ReactNode;
 };
+
+function SidebarFallback() {
+  return (
+    <div className="flex h-full items-center justify-center p-6">
+      <span className="text-sm text-paper-muted">Cargando…</span>
+    </div>
+  );
+}
 
 export default function ConversationsLayout({ children }: Props) {
   const pathname = usePathname();
@@ -21,7 +30,9 @@ export default function ConversationsLayout({ children }: Props) {
           showSidebarMobile ? "flex w-full" : "hidden md:flex"
         }`}
       >
-        <ConversationsSidebar />
+        <Suspense fallback={<SidebarFallback />}>
+          <ConversationsSidebar />
+        </Suspense>
       </div>
       <div
         className={`flex h-full min-w-0 flex-1 flex-col overflow-hidden ${
