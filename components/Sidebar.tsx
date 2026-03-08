@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useSidebar } from "./SidebarContext";
 
 const NAV = [
@@ -12,11 +12,15 @@ const NAV = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const prevPathnameRef = useRef(pathname);
   const { collapsed, toggle, width, offWorkOnly, setOffWorkOnly, mobileOpen, setMobileOpen, isMobile } = useSidebar();
 
   useEffect(() => {
-    if (isMobile && mobileOpen) setMobileOpen(false);
-  }, [pathname, isMobile, mobileOpen, setMobileOpen]);
+    if (prevPathnameRef.current !== pathname) {
+      prevPathnameRef.current = pathname;
+      if (isMobile) setMobileOpen(false);
+    }
+  }, [pathname, isMobile, setMobileOpen]);
 
   return (
     <>
