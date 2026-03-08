@@ -18,14 +18,14 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
+        credentials: "include",
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error ?? "Error al iniciar sesión");
         return;
       }
-      router.push("/leads");
-      router.refresh();
+      window.location.href = "/leads";
     } catch {
       setError("Error de conexión");
     } finally {

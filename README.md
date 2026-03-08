@@ -43,24 +43,25 @@ npm run dev
 - `npm run start` — Servidor de producción (tras `npm run build`)
 - `npm run lint` — Linter
 
-## Despliegue en EasyPanel
+## Despliegue en Easypanel (Dockerfile)
 
 1. Subir el proyecto a GitHub.
 
-2. En EasyPanel, crear una nueva aplicación:
-   - Tipo: **Node.js** / **Next.js**
-   - Repositorio: tu repo de GitHub
-   - Build command: `npm run build`
-   - Start command: `npm start`
+2. En Easypanel, crear un nuevo servicio desde GitHub:
+   - Método de compilación: **Dockerfile**
+   - Repositorio: tu repo (ej. `smiralbell/VICENTE`)
    - Puerto: `3000`
 
-3. Añadir variables de entorno en EasyPanel (no usar `NEXT_PUBLIC_` para secretos):
-   - `DATABASE_URL`
-   - `DASHBOARD_PASSWORD`
-   - `SESSION_SECRET`
+3. **Importante:** Configurar las variables de entorno **del contenedor en ejecución** (no solo “Build args”). En el servicio, en la sección **Variables de entorno** / **Environment**, añadir:
+   - `DATABASE_URL` — URL de PostgreSQL
+   - `DASHBOARD_PASSWORD` — Contraseña del panel
+   - `SESSION_SECRET` — Cadena aleatoria (ej. `openssl rand -hex 32`)
+   - `WEBHOOK_OFFWORK_URL` — URL del webhook n8n (opcional)
    - `NODE_ENV=production`
 
-4. Desplegar. La conexión a PostgreSQL debe ser accesible desde el servidor (EasyPanel suele permitir variables de entorno y redes internas).
+   Si solo se configuran como *build args*, el login fallará porque en runtime no existirán y la cookie de sesión no se creará.
+
+4. Desplegar. La base de datos debe ser accesible desde el servidor donde corre Easypanel.
 
 ## Estructura
 

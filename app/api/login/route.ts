@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSession } from "@/lib/auth";
+import { createSession, validateSession } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   const password = process.env.DASHBOARD_PASSWORD;
+  const secret = process.env.SESSION_SECRET;
   if (!password) {
     return NextResponse.json(
-      { error: "Configuración del servidor incorrecta" },
+      {
+        error:
+          "Falta DASHBOARD_PASSWORD. Configúrala como variable de entorno del contenedor en ejecución (no solo como build arg).",
+      },
+      { status: 500 }
+    );
+  }
+  if (!secret) {
+    return NextResponse.json(
+      {
+        error:
+          "Falta SESSION_SECRET. Configúrala como variable de entorno del contenedor en ejecución (no solo como build arg).",
+      },
       { status: 500 }
     );
   }
@@ -29,5 +42,15 @@ export async function POST(request: NextRequest) {
   }
 
   await createSession();
+  const ok = await validateSession();
+  if (!ok) {
+    return NextResponse.json(
+      {
+        error:
+          "No se pudo crear la sesión. Comprueba que SESSION_SECRET está definida como variable de entorno en el contenedor.",
+      },
+      { status: 500 }
+    );
+  }
   return NextResponse.json({ success: true });
 }
