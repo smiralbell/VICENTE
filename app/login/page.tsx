@@ -34,9 +34,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-paper px-4">
+    <div className="flex min-h-screen items-center justify-center bg-paper px-4 py-6 safe-area-inset">
       <div className="w-full max-w-sm">
-        <div className="rounded border border-paper-border bg-paper-card p-8">
+        <div className="rounded-xl border border-paper-border bg-paper-card p-6 shadow-sm sm:p-8">
           <p className="font-serif text-sm text-paper-muted">
             G. Elías y Muñoz Abogados
           </p>
@@ -56,7 +56,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Contraseña"
-              className="w-full rounded border border-paper-border bg-paper-card px-3 py-2.5 text-paper-ink placeholder-paper-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="w-full rounded border border-paper-border bg-paper-card px-3 py-3 text-base text-paper-ink placeholder-paper-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand sm:py-2.5 sm:text-sm"
               autoComplete="current-password"
               required
               autoFocus
@@ -69,7 +69,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="mt-5 w-full rounded bg-brand py-2.5 font-medium text-white hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-1 disabled:opacity-50"
+              className="mt-5 w-full min-h-[48px] rounded-lg bg-brand py-3 font-medium text-white hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-1 disabled:opacity-50 sm:py-2.5"
             >
               {loading ? "Comprobando…" : "Entrar"}
             </button>

@@ -51,13 +51,13 @@ export default function ConversationsSidebar() {
   }, [fetchSessions]);
 
   return (
-    <div className="flex h-full min-h-0 w-[320px] shrink-0 flex-col border-r border-paper-border">
-      <div className="flex min-h-0 flex-1 flex-col pt-10 px-6">
+    <div className="flex h-full min-h-0 w-full shrink-0 flex-col border-r border-paper-border md:w-[320px]">
+      <div className="flex min-h-0 flex-1 flex-col pt-4 px-4 sm:pt-6 sm:px-5 md:pt-10 md:px-6">
         <div className="shrink-0">
           <form
             method="get"
             action="/conversations"
-            className="flex gap-2"
+            className="flex flex-col gap-2 sm:flex-row"
             role="search"
             aria-label="Buscar conversaciones"
           >
@@ -67,17 +67,17 @@ export default function ConversationsSidebar() {
               defaultValue={q}
               placeholder="Buscar conversaciones..."
               aria-label="Texto de búsqueda"
-              className="min-w-0 flex-1 rounded-md border border-paper-border bg-white px-3 py-2 text-sm text-paper-ink placeholder-paper-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="min-w-0 flex-1 rounded-md border border-paper-border bg-white px-3 py-3 text-base text-paper-ink placeholder-paper-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand sm:py-2 sm:text-sm"
             />
             <button
               type="submit"
-              className="shrink-0 rounded-md bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+              className="shrink-0 rounded-md bg-brand px-4 py-3 text-base font-medium text-white hover:bg-brand-hover sm:py-2 sm:text-sm"
             >
               Buscar
             </button>
           </form>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto pt-5">
+        <div className="min-h-0 flex-1 overflow-y-auto pt-4 md:pt-5">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <span className="text-sm text-paper-muted">Cargando…</span>
@@ -106,10 +106,10 @@ export default function ConversationsSidebar() {
                   <Link
                     href={href}
                     aria-current={isActive ? "page" : undefined}
-                    className={`flex items-start gap-3 rounded-lg px-3 py-3 transition-colors ${
+                    className={`flex min-h-[56px] items-start gap-3 rounded-lg px-3 py-3 transition-colors ${
                       isActive
                         ? "bg-brand-subtle"
-                        : "hover:bg-paper"
+                        : "hover:bg-paper active:bg-paper-border"
                     }`}
                   >
                     <div

@@ -107,7 +107,36 @@ export default function LeadsTable({
   : "created_at";
 
   return (
-    <div className="overflow-x-auto">
+    <>
+      {/* Vista móvil: cards */}
+      <div className="space-y-3 md:hidden">
+        {leads.map((lead) => (
+          <button
+            key={lead.id}
+            type="button"
+            onClick={() => handleRowClick(lead)}
+            className="w-full rounded-xl border border-paper-border bg-paper-card p-4 text-left shadow-sm transition-colors hover:bg-brand-subtle/50 active:bg-brand-subtle focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
+          >
+            <p className="font-medium text-paper-ink">{lead.name}</p>
+            {lead.email && (
+              <p className="mt-1 truncate text-sm text-paper-inkLight">{lead.email}</p>
+            )}
+            {lead.phone && (
+              <p className="text-sm text-paper-muted">{lead.phone}</p>
+            )}
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-paper-muted">
+              {lead.source && <span>{lead.source}</span>}
+              <span>{formatDate(lead.created_at)}</span>
+            </div>
+            {lead.summary && (
+              <p className="mt-2 line-clamp-2 text-sm text-paper-muted">{lead.summary}</p>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Vista escritorio: tabla */}
+      <div className="overflow-x-auto max-md:hidden">
       <table className="w-full min-w-[720px]" role="grid">
         <thead>
           <tr className="border-b border-paper-border">
@@ -208,6 +237,7 @@ export default function LeadsTable({
           </div>,
           document.body
         )}
-    </div>
+      </div>
+    </>
   );
 }

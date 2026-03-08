@@ -30,7 +30,7 @@ export default async function LeadDetailPage({ params }: Props) {
     <div className="max-w-2xl">
       <Link
         href="/leads"
-        className="inline-flex items-center gap-1 text-sm text-paper-muted hover:text-brand focus:outline-none focus:underline"
+        className="inline-flex min-h-[44px] items-center gap-1 text-sm text-paper-muted hover:text-brand focus:outline-none focus:underline"
       >
         ← Volver a leads
       </Link>
@@ -92,7 +92,7 @@ export default async function LeadDetailPage({ params }: Props) {
           <div className="mt-8 pt-6 border-t border-paper-border">
             <Link
               href={`/conversations/${encodeURIComponent(lead.session_id)}`}
-              className="inline-flex items-center rounded bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-1"
+              className="inline-flex min-h-[48px] items-center rounded-lg bg-brand px-4 py-3 text-sm font-medium text-white hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-1"
             >
               Ver conversación
             </Link>

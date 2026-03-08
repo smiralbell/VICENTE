@@ -52,17 +52,17 @@ export default async function LeadsPage({ searchParams }: Props) {
 
       {totalPages > 1 && (
         <nav
-          className="mt-5 flex items-center justify-between border-t border-paper-border pt-4"
+          className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-paper-border pt-4"
           aria-label="Paginación"
         >
           <p className="text-xs text-paper-muted">
             {total} resultado{total !== 1 ? "s" : ""} · página {page} de {totalPages}
           </p>
-          <div className="flex gap-1">
+          <div className="flex gap-2">
             {page > 1 && (
               <a
                 href={buildPageUrl(page - 1, search, sortField, order)}
-                className="rounded px-2.5 py-1.5 text-xs text-paper-inkLight hover:bg-paper hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-1"
+                className="min-h-[44px] rounded px-4 py-2.5 text-sm text-paper-inkLight hover:bg-paper hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-1"
               >
                 ← Anterior
               </a>
@@ -70,7 +70,7 @@ export default async function LeadsPage({ searchParams }: Props) {
             {page < totalPages && (
               <a
                 href={buildPageUrl(page + 1, search, sortField, order)}
-                className="rounded px-2.5 py-1.5 text-xs text-paper-inkLight hover:bg-paper hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-1"
+                className="min-h-[44px] rounded px-4 py-2.5 text-sm text-paper-inkLight hover:bg-paper hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-1"
               >
                 Siguiente →
               </a>

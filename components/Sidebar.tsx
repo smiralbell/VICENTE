@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { useSidebar } from "./SidebarContext";
 
 const NAV = [
@@ -11,16 +12,31 @@ const NAV = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { collapsed, toggle, width, offWorkOnly, setOffWorkOnly } = useSidebar();
+  const { collapsed, toggle, width, offWorkOnly, setOffWorkOnly, mobileOpen, setMobileOpen, isMobile } = useSidebar();
+
+  useEffect(() => {
+    if (isMobile && mobileOpen) setMobileOpen(false);
+  }, [pathname, isMobile, mobileOpen, setMobileOpen]);
 
   return (
     <>
+      {isMobile && mobileOpen && (
+        <button
+          type="button"
+          aria-label="Cerrar menú"
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-10 bg-black/50 backdrop-blur-[2px]"
+        />
+      )}
       <aside
-        className="fixed left-0 top-0 z-20 flex h-full flex-col bg-brand transition-all duration-300 ease-in-out"
-        style={{ width }}
+        className="fixed left-0 top-0 z-20 flex h-full flex-col bg-brand transition-all duration-300 ease-in-out md:translate-x-0"
+        style={{
+          width: isMobile ? 280 : width,
+          transform: isMobile && !mobileOpen ? "translateX(-100%)" : undefined,
+        }}
       >
-        <div className={`flex h-14 shrink-0 items-center border-b border-white/10 px-3 ${collapsed ? "justify-center" : "justify-between"}`}>
-          {!collapsed && (
+        <div className={`flex h-14 shrink-0 items-center border-b border-white/10 px-3 ${collapsed && !isMobile ? "justify-center" : "justify-between"}`}>
+          {(!collapsed || isMobile) && (
             <div className="flex items-center gap-2 overflow-hidden">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/15 font-serif text-sm font-semibold text-white">
                 E&M
@@ -35,22 +51,38 @@ export default function Sidebar() {
               </div>
             </div>
           )}
-          <button
-            type="button"
-            onClick={toggle}
-            aria-label={collapsed ? "Mostrar menú" : "Ocultar menú"}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/80 hover:bg-white/15 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50"
-          >
-            {collapsed ? (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-              </svg>
-            ) : (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
-              </svg>
+          <div className="flex items-center gap-1">
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Cerrar menú"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white/80 hover:bg-white/15 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             )}
-          </button>
+            {!isMobile && (
+              <button
+                type="button"
+                onClick={toggle}
+                aria-label={collapsed ? "Mostrar menú" : "Ocultar menú"}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/80 hover:bg-white/15 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+              >
+                {collapsed ? (
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
+                  </svg>
+                )}
+              </button>
+            )}
+          </div>
         </div>
 
         <nav className="flex-1 overflow-y-auto py-3">
@@ -62,7 +94,7 @@ export default function Sidebar() {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-                  collapsed ? "justify-center px-0" : "px-4"
+                  collapsed && !isMobile ? "justify-center px-0" : "px-4"
                 } ${
                   active
                     ? "bg-white/15 font-medium text-white"
@@ -78,15 +110,15 @@ export default function Sidebar() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
                 )}
-                {!collapsed && <span>{label}</span>}
+                {(!collapsed || isMobile) && <span>{label}</span>}
               </Link>
             );
           })}
         </nav>
 
         <div className="border-t border-white/10 px-3 py-4">
-          <div className={`flex flex-col items-center gap-3 ${collapsed ? "px-0" : ""}`}>
-            {!collapsed && (
+          <div className={`flex flex-col items-center gap-3 ${collapsed && !isMobile ? "px-0" : ""}`}>
+            {(!collapsed || isMobile) && (
               <p className="text-center text-[11px] font-medium uppercase tracking-wider text-white/70">
                 {offWorkOnly ? "Solo fuera laboral" : "Siempre activo"}
               </p>
@@ -116,7 +148,7 @@ export default function Sidebar() {
                   offWorkOnly ? "bg-white" : "bg-white/90"
                 }`}
               />
-              {!collapsed && (
+              {(!collapsed || isMobile) && (
                 <>
                   <span
                     className={`absolute left-2 text-[10px] font-bold uppercase tracking-wider ${
@@ -135,7 +167,7 @@ export default function Sidebar() {
                 </>
               )}
             </button>
-            {!collapsed && (
+            {(!collapsed || isMobile) && (
               <p className="text-center text-[11px] leading-snug text-white/80">
                 Si está <strong>ON</strong>, el sistema funcionará solo en horario fuera laboral. Si está <strong>OFF</strong>, funcionará siempre.
               </p>
@@ -148,13 +180,13 @@ export default function Sidebar() {
             <button
               type="submit"
               className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/30 ${
-                collapsed ? "justify-center px-0" : "px-3"
+                collapsed && !isMobile ? "justify-center px-0" : "px-3"
               }`}
             >
               <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
-              {!collapsed && <span>Cerrar sesión</span>}
+              {(!collapsed || isMobile) && <span>Cerrar sesión</span>}
             </button>
           </form>
         </div>

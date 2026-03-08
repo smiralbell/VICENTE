@@ -19,7 +19,7 @@ export default async function ConversationDetailPage({ params }: Props) {
 
   return (
     <section
-      className="flex h-full min-h-0 flex-1 flex-col bg-paper px-12 pt-12"
+      className="flex h-full min-h-0 flex-1 flex-col bg-paper px-4 pt-4 sm:px-6 sm:pt-6 md:px-12 md:pt-12"
       aria-label="Conversación"
     >
       <ConversationHeader lead={lead} sessionId={decodedId} />
