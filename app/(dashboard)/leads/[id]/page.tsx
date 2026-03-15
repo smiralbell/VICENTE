@@ -68,6 +68,26 @@ export default async function LeadDetailPage({ params }: Props) {
               {lead.source ?? "—"}
             </dd>
           </div>
+          <div>
+            <dt className="text-[11px] font-medium uppercase tracking-wider text-paper-muted">
+              Estado
+            </dt>
+            <dd className="mt-1 text-sm text-paper-ink">
+              {lead.status === "pending_contact"
+                ? "Pendiente contacto"
+                : lead.status === "contacted"
+                  ? "Contactado"
+                  : "Sin estado"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-medium uppercase tracking-wider text-paper-muted">
+              Intentos de llamada
+            </dt>
+            <dd className="mt-0.5 text-sm text-paper-ink">
+              {typeof lead.call_attempts === "number" ? lead.call_attempts : "—"}
+            </dd>
+          </div>
           <div className="sm:col-span-2">
             <dt className="text-[11px] font-medium uppercase tracking-wider text-paper-muted">
               Session ID

@@ -27,6 +27,8 @@ export type Lead = {
   session_id: string | null;
   summary: string | null;
   source: string | null;
+  status: string | null;
+  call_attempts: number | null;
 };
 
 export type ChatMessage = {
@@ -60,7 +62,7 @@ export async function getLeadsPaginated(
 ): Promise<{ leads: Lead[]; total: number }> {
   const offset = (page - 1) * pageSize;
   let countQuery = `SELECT COUNT(*)::int FROM ${LEADS_TABLE}`;
-  let dataQuery = `SELECT id, created_at, name, email, phone, session_id, summary, source FROM ${LEADS_TABLE}`;
+  let dataQuery = `SELECT id, created_at, name, email, phone, session_id, summary, source, status, call_attempts FROM ${LEADS_TABLE}`;
   const conditions: string[] = [];
   const params: (string | number)[] = [];
   let paramIndex = 1;
@@ -165,7 +167,7 @@ export async function getMessagesBySessionId(
 
 export async function getLeadById(id: number): Promise<Lead | null> {
   const { rows } = await query<Lead>(
-    `SELECT id, created_at, name, email, phone, session_id, summary, source FROM ${LEADS_TABLE} WHERE id = $1`,
+    `SELECT id, created_at, name, email, phone, session_id, summary, source, status, call_attempts FROM ${LEADS_TABLE} WHERE id = $1`,
     [id]
   );
   return rows[0] ?? null;
@@ -175,7 +177,7 @@ export async function getLeadBySessionId(
   sessionId: string
 ): Promise<Lead | null> {
   const { rows } = await query<Lead>(
-    `SELECT id, created_at, name, email, phone, session_id, summary, source FROM ${LEADS_TABLE} WHERE session_id = $1 LIMIT 1`,
+    `SELECT id, created_at, name, email, phone, session_id, summary, source, status, call_attempts FROM ${LEADS_TABLE} WHERE session_id = $1 LIMIT 1`,
     [sessionId]
   );
   return rows[0] ?? null;
@@ -183,7 +185,7 @@ export async function getLeadBySessionId(
 
 export async function getRecentLeads(limit: number): Promise<Lead[]> {
   const { rows } = await query<Lead>(
-    `SELECT id, created_at, name, email, phone, session_id, summary, source FROM ${LEADS_TABLE} ORDER BY created_at DESC LIMIT $1`,
+    `SELECT id, created_at, name, email, phone, session_id, summary, source, status, call_attempts FROM ${LEADS_TABLE} ORDER BY created_at DESC LIMIT $1`,
     [limit]
   );
   return rows;
@@ -211,7 +213,7 @@ export async function getConversationSessionsWithLeadAndPreview(
   const sessionIds = sessions.map((s) => s.session_id);
   const placeholders = sessionIds.map((_, i) => `$${i + 1}`).join(", ");
   const { rows: leadsRows } = await query<Lead>(
-    `SELECT id, created_at, name, email, phone, session_id, summary, source FROM ${LEADS_TABLE} WHERE session_id IN (${placeholders})`,
+    `SELECT id, created_at, name, email, phone, session_id, summary, source, status, call_attempts FROM ${LEADS_TABLE} WHERE session_id IN (${placeholders})`,
     sessionIds
   );
   const leadBySession = new Map(leadsRows.map((l) => [l.session_id!, l]));

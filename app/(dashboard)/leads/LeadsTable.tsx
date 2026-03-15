@@ -21,10 +21,34 @@ const COLUMNS: { key: LeadSortField | null; label: string }[] = [
   { key: "email", label: "Email" },
   { key: null, label: "Teléfono" },
   { key: "source", label: "Fuente" },
+  { key: null, label: "Estado" },
+  { key: null, label: "Intentos" },
   { key: null, label: "Resumen" },
   { key: "created_at", label: "Fecha" },
   { key: null, label: "Session ID" },
 ];
+
+function getStatusPill(status: string | null) {
+  if (!status) {
+    return { label: "Sin estado", className: "bg-paper-border text-paper-muted" };
+  }
+  if (status === "pending_contact") {
+    return {
+      label: "Pendiente contacto",
+      className: "bg-amber-100 text-amber-800 border border-amber-200",
+    };
+  }
+  if (status === "contacted") {
+    return {
+      label: "Contactado",
+      className: "bg-emerald-100 text-emerald-800 border border-emerald-200",
+    };
+  }
+  return {
+    label: status,
+    className: "bg-paper-border text-paper-muted",
+  };
+}
 
 function buildSortUrl(
   field: LeadSortField,
@@ -117,16 +141,35 @@ export default function LeadsTable({
             onClick={() => handleRowClick(lead)}
             className="w-full rounded-xl border border-paper-border bg-paper-card p-4 text-left shadow-sm transition-colors hover:bg-brand-subtle/50 active:bg-brand-subtle focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
           >
-            <p className="font-medium text-paper-ink">{lead.name}</p>
-            {lead.email && (
-              <p className="mt-1 truncate text-sm text-paper-inkLight">{lead.email}</p>
-            )}
-            {lead.phone && (
-              <p className="text-sm text-paper-muted">{lead.phone}</p>
-            )}
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-paper-muted">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-medium text-paper-ink">{lead.name}</p>
+                {lead.email && (
+                  <p className="mt-1 truncate text-sm text-paper-inkLight">{lead.email}</p>
+                )}
+                {lead.phone && (
+                  <p className="text-sm text-paper-muted">{lead.phone}</p>
+                )}
+              </div>
+              <div className="shrink-0">
+                {(() => {
+                  const pill = getStatusPill(lead.status);
+                  return (
+                    <span
+                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${pill.className}`}
+                    >
+                      {pill.label}
+                    </span>
+                  );
+                })()}
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-paper-muted">
               {lead.source && <span>{lead.source}</span>}
               <span>{formatDate(lead.created_at)}</span>
+              {typeof lead.call_attempts === "number" && (
+                <span>Intentos: {lead.call_attempts}</span>
+              )}
             </div>
             {lead.summary && (
               <p className="mt-2 line-clamp-2 text-sm text-paper-muted">{lead.summary}</p>
@@ -137,7 +180,7 @@ export default function LeadsTable({
 
       {/* Vista escritorio: tabla */}
       <div className="overflow-x-auto max-md:hidden">
-      <table className="w-full min-w-[720px]" role="grid">
+      <table className="w-full min-w-[880px]" role="grid">
         <thead>
           <tr className="border-b border-paper-border">
             {COLUMNS.map(({ key, label }, i) => (
@@ -199,6 +242,21 @@ export default function LeadsTable({
               </td>
               <td className="py-3.5 px-4 text-sm text-paper-muted">
                 {lead.source ?? "—"}
+              </td>
+              <td className="py-3.5 px-4 text-sm text-paper-muted">
+                {(() => {
+                  const pill = getStatusPill(lead.status);
+                  return (
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${pill.className}`}
+                    >
+                      {pill.label}
+                    </span>
+                  );
+                })()}
+              </td>
+              <td className="py-3.5 px-4 text-sm text-paper-inkLight">
+                {typeof lead.call_attempts === "number" ? lead.call_attempts : "—"}
               </td>
               <td
                 className="max-w-[200px] truncate py-3.5 px-4 text-sm text-paper-muted"
