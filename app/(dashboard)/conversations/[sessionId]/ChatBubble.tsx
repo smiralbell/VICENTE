@@ -12,6 +12,13 @@ function getRole(msg: Record<string, unknown>): "user" | "assistant" {
 }
 
 function getText(msg: Record<string, unknown>): string | null {
+  const type = typeof msg.type === "string" ? msg.type.toLowerCase() : null;
+
+  // Ocultar mensajes internos de tools/sistema; solo mostramos usuario y respuestas de IA
+  if (type && type !== "ai" && type !== "assistant" && type !== "human" && type !== "user") {
+    return null;
+  }
+
   const raw = msg.text ?? msg.content ?? msg.message ?? msg.body;
   if (typeof raw !== "string") return null;
 
