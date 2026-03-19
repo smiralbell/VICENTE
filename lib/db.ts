@@ -45,6 +45,16 @@ export type SessionSummary = {
 
 const LEADS_TABLE = "eliasymunozabogados_leads";
 const CHAT_TABLE = "eliasymunozabogados_chat_histories";
+const TRANSCRIPTIONS_TABLE = "eliasmunozabogados_transcripciones";
+
+export type Transcription = {
+  id: number;
+  transcription: string | null;
+  phone: string | null;
+  name: string | null;
+  mail: string | null;
+  fecha: Date | null;
+};
 
 const SORT_FIELDS = ["created_at", "name", "email", "source"] as const;
 export type LeadSortField = (typeof SORT_FIELDS)[number];
@@ -246,4 +256,39 @@ export async function getConversationSessionsWithLeadAndPreview(
     lead: leadBySession.get(s.session_id) ?? null,
     last_message_preview: previewBySession.get(s.session_id) ?? null,
   }));
+}
+
+export async function getTranscriptions(
+  search?: string
+): Promise<Transcription[]> {
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+  let paramIndex = 1;
+
+  if (search && search.trim()) {
+    conditions.push(
+      `(name ILIKE $${paramIndex} OR phone ILIKE $${paramIndex} OR mail ILIKE $${paramIndex})`
+    );
+    params.push(`%${search.trim()}%`);
+    paramIndex++;
+  }
+
+  let queryText = `SELECT id, transcription, phone, name, mail, fecha FROM ${TRANSCRIPTIONS_TABLE}`;
+  if (conditions.length) {
+    queryText += ` WHERE ${conditions.join(" AND ")}`;
+  }
+  queryText += " ORDER BY fecha DESC NULLS LAST, id DESC";
+
+  const { rows } = await query<Transcription>(queryText, params);
+  return rows;
+}
+
+export async function getTranscriptionById(
+  id: number
+): Promise<Transcription | null> {
+  const { rows } = await query<Transcription>(
+    `SELECT id, transcription, phone, name, mail, fecha FROM ${TRANSCRIPTIONS_TABLE} WHERE id = $1`,
+    [id]
+  );
+  return rows[0] ?? null;
 }

@@ -37,13 +37,13 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-paper px-4 py-6 safe-area-inset">
       <div className="w-full max-w-sm">
         <div className="rounded-xl border border-paper-border bg-paper-card p-6 shadow-sm sm:p-8">
-          <p className="font-serif text-sm text-paper-muted">
+          <p className="font-serif text-sm text-paper-muted text-center">
             G. Elías y Muñoz Abogados
           </p>
-          <h1 className="mt-1 font-serif text-xl font-medium text-paper-ink">
+          <h1 className="mt-1 font-serif text-xl font-medium text-paper-ink text-center">
             Acceso al panel
           </h1>
-          <p className="mt-3 text-sm text-paper-muted">
+          <p className="mt-3 text-sm text-paper-muted text-center">
             Introduzca la contraseña de acceso
           </p>
           <form onSubmit={handleSubmit} className="mt-6">

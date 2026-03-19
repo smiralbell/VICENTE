@@ -44,6 +44,9 @@ export const config = {
     "/conversations",
     "/conversations/:path*",
     "/api/conversations",
+    "/transcriptions",
+    "/transcriptions/:path*",
+    "/api/transcriptions",
     "/login",
   ],
 };

@@ -7,13 +7,13 @@ import { useCallback, useState } from "react";
 import type { Lead, LeadSortField } from "@/lib/db";
 
 function formatDate(d: Date) {
-  return new Date(d).toLocaleDateString("es-ES", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const date = new Date(d);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
 const COLUMNS: { key: LeadSortField | null; label: string }[] = [
@@ -34,7 +34,7 @@ function getStatusPill(status: string | null) {
   }
   if (status === "pending_contact") {
     return {
-      label: "Pendiente contacto",
+      label: "Pendiente",
       className: "bg-amber-100 text-amber-800 border border-amber-200",
     };
   }
