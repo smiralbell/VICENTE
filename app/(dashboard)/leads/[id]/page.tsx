@@ -8,14 +8,69 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
-function formatDate(d: Date) {
-  return new Date(d).toLocaleDateString("es-ES", {
+function parseDate(value: Date | string | null | undefined): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const direct = new Date(raw);
+  if (!Number.isNaN(direct.getTime())) return direct;
+
+  const match = raw.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+  );
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const year = Number(match[3]);
+  const hours = Number(match[4] ?? "0");
+  const minutes = Number(match[5] ?? "0");
+  const seconds = Number(match[6] ?? "0");
+
+  const parsed = new Date(year, month, day, hours, minutes, seconds);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDate(d: Date | string | null | undefined) {
+  const parsed = parseDate(d);
+  if (!parsed) return "—";
+  return parsed.toLocaleDateString("es-ES", {
     day: "2-digit",
     month: "long",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function getModalidadPill(modalidad: string | null) {
+  if (!modalidad) {
+    return { label: "—", className: "bg-paper-border text-paper-muted" };
+  }
+
+  const normalized = modalidad.trim().toLowerCase();
+  if (normalized === "videoconferencia") {
+    return {
+      label: "Videoconferencia",
+      className: "bg-sky-100 text-sky-800 border border-sky-200",
+    };
+  }
+  if (normalized === "presencial") {
+    return {
+      label: "Presencial",
+      className: "bg-violet-100 text-violet-800 border border-violet-200",
+    };
+  }
+
+  return {
+    label: modalidad,
+    className: "bg-paper-border text-paper-muted",
+  };
 }
 
 export default async function LeadDetailPage({ params }: Props) {
@@ -66,6 +121,31 @@ export default async function LeadDetailPage({ params }: Props) {
             </dt>
             <dd className="mt-0.5 text-sm text-paper-ink">
               {lead.source ?? "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-medium uppercase tracking-wider text-paper-muted">
+              Horario reunión
+            </dt>
+            <dd className="mt-0.5 text-sm text-paper-ink">
+              {formatDate(lead.fecha)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-medium uppercase tracking-wider text-paper-muted">
+              Modalidad
+            </dt>
+            <dd className="mt-0.5 text-sm text-paper-ink">
+              {(() => {
+                const pill = getModalidadPill(lead.modalidad);
+                return (
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${pill.className}`}
+                  >
+                    {pill.label}
+                  </span>
+                );
+              })()}
             </dd>
           </div>
           <div>

@@ -6,8 +6,37 @@ import { createPortal } from "react-dom";
 import { useCallback, useState } from "react";
 import type { Lead, LeadSortField } from "@/lib/db";
 
-function formatDate(d: Date) {
-  const date = new Date(d);
+function parseDate(value: Date | string | null | undefined): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const direct = new Date(raw);
+  if (!Number.isNaN(direct.getTime())) return direct;
+
+  const match = raw.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+  );
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const year = Number(match[3]);
+  const hours = Number(match[4] ?? "0");
+  const minutes = Number(match[5] ?? "0");
+  const seconds = Number(match[6] ?? "0");
+
+  const parsed = new Date(year, month, day, hours, minutes, seconds);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
+function formatDate(d: Date | string | null | undefined) {
+  const date = parseDate(d);
+  if (!date) return "—";
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
@@ -24,8 +53,9 @@ const COLUMNS: { key: LeadSortField | null; label: string }[] = [
   { key: null, label: "Estado" },
   { key: null, label: "Intentos" },
   { key: null, label: "Resumen" },
-  { key: "created_at", label: "Fecha" },
-  { key: null, label: "Session ID" },
+  { key: null, label: "Horario reunión" },
+  { key: null, label: "Modalidad" },
+  { key: "created_at", label: "Creado" },
 ];
 
 function getStatusPill(status: string | null) {
@@ -46,6 +76,31 @@ function getStatusPill(status: string | null) {
   }
   return {
     label: status,
+    className: "bg-paper-border text-paper-muted",
+  };
+}
+
+function getModalidadPill(modalidad: string | null) {
+  if (!modalidad) {
+    return { label: "—", className: "bg-paper-border text-paper-muted" };
+  }
+
+  const normalized = modalidad.trim().toLowerCase();
+  if (normalized === "videoconferencia") {
+    return {
+      label: "Videoconferencia",
+      className: "bg-sky-100 text-sky-800 border border-sky-200",
+    };
+  }
+  if (normalized === "presencial") {
+    return {
+      label: "Presencial",
+      className: "bg-violet-100 text-violet-800 border border-violet-200",
+    };
+  }
+
+  return {
+    label: modalidad,
     className: "bg-paper-border text-paper-muted",
   };
 }
@@ -166,6 +221,17 @@ export default function LeadsTable({
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-paper-muted">
               {lead.source && <span>{lead.source}</span>}
+              <span>Reunión: {formatDate(lead.fecha)}</span>
+              {(() => {
+                const pill = getModalidadPill(lead.modalidad);
+                return (
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${pill.className}`}
+                  >
+                    {pill.label}
+                  </span>
+                );
+              })()}
               <span>{formatDate(lead.created_at)}</span>
               {typeof lead.call_attempts === "number" && (
                 <span>Intentos: {lead.call_attempts}</span>
@@ -180,15 +246,19 @@ export default function LeadsTable({
 
       {/* Vista escritorio: tabla */}
       <div className="overflow-x-auto max-md:hidden">
-      <table className="w-full min-w-[880px]" role="grid">
+      <table className="w-full table-fixed" role="grid">
         <thead>
           <tr className="border-b border-paper-border">
             {COLUMNS.map(({ key, label }, i) => (
               <th
                 key={key ?? i}
-                className={`py-3 text-left text-xs font-medium tracking-wide text-paper-muted ${
-                  label === "Resumen" ? "max-w-[200px] px-4" : "px-4"
-                } ${i === COLUMNS.length - 1 ? "pl-4" : ""}`}
+                className={`py-2.5 text-left text-[11px] font-medium tracking-wide text-paper-muted lg:py-3 lg:text-xs ${
+                  label === "Resumen"
+                    ? "max-w-[160px] px-2 lg:max-w-[200px] lg:px-3"
+                    : label === "Intentos"
+                      ? "w-[70px] px-1 text-center lg:w-[80px] lg:px-2"
+                      : "px-2 lg:px-3"
+                } ${i === COLUMNS.length - 1 ? "pl-2 lg:pl-3" : ""}`}
               >
                 {key ? (
                   <Link
@@ -231,19 +301,19 @@ export default function LeadsTable({
               }}
               className="cursor-pointer border-b border-paper-border transition-colors hover:bg-brand-subtle/50 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-inset"
             >
-              <td className="py-3.5 px-4 text-sm font-medium text-paper-ink">
+              <td className="truncate py-2.5 px-2 text-xs font-medium text-paper-ink lg:py-3 lg:px-3 lg:text-sm">
                 {lead.name}
               </td>
-              <td className="py-3.5 px-4 text-sm text-paper-inkLight">
+              <td className="truncate py-2.5 px-2 text-xs text-paper-inkLight lg:py-3 lg:px-3 lg:text-sm">
                 {lead.email}
               </td>
-              <td className="py-3.5 px-4 text-sm text-paper-inkLight">
+              <td className="truncate py-2.5 px-2 text-xs text-paper-inkLight lg:py-3 lg:px-3 lg:text-sm">
                 {lead.phone ?? "—"}
               </td>
-              <td className="py-3.5 px-4 text-sm text-paper-muted">
+              <td className="truncate py-2.5 px-2 text-xs text-paper-muted lg:py-3 lg:px-3 lg:text-sm">
                 {lead.source ?? "—"}
               </td>
-              <td className="py-3.5 px-4 text-sm text-paper-muted">
+              <td className="py-2.5 px-2 text-xs text-paper-muted lg:py-3 lg:px-3 lg:text-sm">
                 {(() => {
                   const pill = getStatusPill(lead.status);
                   return (
@@ -255,25 +325,33 @@ export default function LeadsTable({
                   );
                 })()}
               </td>
-              <td className="py-3.5 px-4 text-sm text-paper-inkLight">
+              <td className="w-[70px] py-2.5 px-1 text-center text-xs text-paper-inkLight lg:w-[80px] lg:py-3 lg:px-2 lg:text-sm">
                 {typeof lead.call_attempts === "number" ? lead.call_attempts : "—"}
               </td>
               <td
-                className="max-w-[200px] truncate py-3.5 px-4 text-sm text-paper-muted"
+                className="max-w-[160px] truncate py-2.5 px-2 text-xs text-paper-muted lg:max-w-[200px] lg:py-3 lg:px-3 lg:text-sm"
                 onMouseEnter={(e) => showSummaryTooltip(e, lead.summary ?? null)}
                 onMouseLeave={hideSummaryTooltip}
               >
                 {lead.summary ?? "—"}
               </td>
-              <td className="py-3.5 px-4 text-sm text-paper-muted">
-                {formatDate(lead.created_at)}
+              <td className="whitespace-nowrap py-2.5 px-2 text-[11px] text-paper-muted lg:py-3 lg:px-3 lg:text-xs">
+                {formatDate(lead.fecha)}
               </td>
-              <td className="py-3.5 pl-4 font-mono text-xs text-paper-muted">
-                {lead.session_id
-                  ? lead.session_id.length > 12
-                    ? `${lead.session_id.slice(0, 12)}…`
-                    : lead.session_id
-                  : "—"}
+              <td className="py-2.5 px-2 text-xs text-paper-muted lg:py-3 lg:px-3 lg:text-sm">
+                {(() => {
+                  const pill = getModalidadPill(lead.modalidad);
+                  return (
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${pill.className}`}
+                    >
+                      {pill.label}
+                    </span>
+                  );
+                })()}
+              </td>
+              <td className="whitespace-nowrap py-2.5 px-2 text-[11px] text-paper-muted lg:py-3 lg:px-3 lg:text-xs">
+                {formatDate(lead.created_at)}
               </td>
             </tr>
           ))}
