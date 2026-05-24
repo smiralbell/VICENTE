@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 
 const STORAGE_KEY = "sidebar-collapsed";
 const OFFWORK_ONLY_KEY = "dashboard-offwork-only";
+const SYSTEM_PUBLISHED_KEY = "dashboard-system-published";
 const MOBILE_BREAKPOINT = 768;
 
 type Context = {
@@ -12,6 +13,8 @@ type Context = {
   width: number;
   offWorkOnly: boolean;
   setOffWorkOnly: (value: boolean) => void;
+  systemPublished: boolean;
+  setSystemPublished: (value: boolean) => void;
   mobileOpen: boolean;
   setMobileOpen: (value: boolean) => void;
   isMobile: boolean;
@@ -22,6 +25,7 @@ const SidebarContext = createContext<Context | null>(null);
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [offWorkOnly, setOffWorkOnlyState] = useState(false);
+  const [systemPublished, setSystemPublishedState] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -29,6 +33,10 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     try {
       setCollapsed(localStorage.getItem(STORAGE_KEY) === "true");
       setOffWorkOnlyState(localStorage.getItem(OFFWORK_ONLY_KEY) === "true");
+      const storedPublished = localStorage.getItem(SYSTEM_PUBLISHED_KEY);
+      if (storedPublished !== null) {
+        setSystemPublishedState(storedPublished === "true");
+      }
     } catch {}
   }, []);
 
@@ -57,6 +65,13 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
+  const setSystemPublished = useCallback((value: boolean) => {
+    setSystemPublishedState(value);
+    try {
+      localStorage.setItem(SYSTEM_PUBLISHED_KEY, String(value));
+    } catch {}
+  }, []);
+
   const width = isMobile ? 0 : collapsed ? 72 : 280;
 
   return (
@@ -67,6 +82,8 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
         width,
         offWorkOnly,
         setOffWorkOnly,
+        systemPublished,
+        setSystemPublished,
         mobileOpen,
         setMobileOpen,
         isMobile,

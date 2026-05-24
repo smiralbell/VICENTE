@@ -14,7 +14,7 @@ const NAV = [
 export default function Sidebar() {
   const pathname = usePathname();
   const prevPathnameRef = useRef(pathname);
-  const { collapsed, toggle, width, offWorkOnly, setOffWorkOnly, mobileOpen, setMobileOpen, isMobile } = useSidebar();
+  const { collapsed, toggle, width, offWorkOnly, setOffWorkOnly, systemPublished, setSystemPublished, mobileOpen, setMobileOpen, isMobile } = useSidebar();
 
   useEffect(() => {
     if (prevPathnameRef.current !== pathname) {
@@ -126,7 +126,65 @@ export default function Sidebar() {
         </nav>
 
         <div className="border-t border-white/10 px-3 py-4">
-          <div className={`flex flex-col items-center gap-3 ${collapsed && !isMobile ? "px-0" : ""}`}>
+          <div className={`flex flex-col items-center gap-4 ${collapsed && !isMobile ? "px-0" : ""}`}>
+            <div className="flex w-full flex-col items-center gap-3">
+              {(!collapsed || isMobile) && (
+                <p className="text-center text-[11px] font-medium uppercase tracking-wider text-white/70">
+                  {systemPublished ? "Sistema activo" : "Sistema desactivado"}
+                </p>
+              )}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={systemPublished}
+                aria-label={systemPublished ? "Desactivar sistema total" : "Activar sistema total"}
+                onClick={() => {
+                  const newValue = !systemPublished;
+                  setSystemPublished(newValue);
+                  const action = newValue ? "publish" : "unpublish";
+                  fetch("/api/webhook-system", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action }),
+                  }).catch(() => {});
+                }}
+                className={`relative flex h-9 w-24 shrink-0 items-center rounded-full px-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 ${
+                  systemPublished ? "bg-emerald-500/90" : "bg-red-500/80"
+                }`}
+                style={{ justifyContent: systemPublished ? "flex-end" : "flex-start" }}
+              >
+                <span
+                  className={`h-6 w-6 rounded-full shadow-md transition-colors ${
+                    systemPublished ? "bg-white" : "bg-white/90"
+                  }`}
+                />
+                {(!collapsed || isMobile) && (
+                  <>
+                    <span
+                      className={`absolute left-2 text-[10px] font-bold uppercase tracking-wider ${
+                        !systemPublished ? "text-white" : "text-white/50"
+                      }`}
+                    >
+                      Off
+                    </span>
+                    <span
+                      className={`absolute right-2 text-[10px] font-bold uppercase tracking-wider ${
+                        systemPublished ? "text-white" : "text-white/50"
+                      }`}
+                    >
+                      On
+                    </span>
+                  </>
+                )}
+              </button>
+              {(!collapsed || isMobile) && (
+                <p className="text-center text-[11px] leading-snug text-white/80">
+                  Activa o desactiva <strong>todo el sistema</strong> por completo.
+                </p>
+              )}
+            </div>
+
+            <div className="flex w-full flex-col items-center gap-3 border-t border-white/10 pt-4">
             {(!collapsed || isMobile) && (
               <p className="text-center text-[11px] font-medium uppercase tracking-wider text-white/70">
                 {offWorkOnly ? "Solo fuera laboral" : "Siempre activo"}
@@ -181,6 +239,7 @@ export default function Sidebar() {
                 Si está <strong>ON</strong>, el sistema funcionará solo en horario fuera laboral. Si está <strong>OFF</strong>, funcionará siempre.
               </p>
             )}
+            </div>
           </div>
         </div>
 
