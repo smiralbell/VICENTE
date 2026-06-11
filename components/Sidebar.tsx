@@ -198,7 +198,7 @@ export default function Sidebar() {
               onClick={() => {
                 const newValue = !offWorkOnly;
                 setOffWorkOnly(newValue);
-                const label = newValue ? "on" : "off";
+                const label = newValue ? "off" : "on";
                 fetch("/api/webhook-offwork", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
