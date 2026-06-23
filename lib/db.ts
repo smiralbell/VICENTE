@@ -8,7 +8,7 @@ const pool = new Pool({
 
 export async function query<T = unknown>(
   text: string,
-  params?: (string | number | null)[]
+  params?: (string | number | boolean | null)[]
 ): Promise<{ rows: T[]; rowCount: number | null }> {
   const client = await pool.connect();
   try {
