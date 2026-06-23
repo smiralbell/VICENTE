@@ -10,7 +10,7 @@ export default function MainContent({
   const { width, isMobile, setMobileOpen } = useSidebar();
   return (
     <div
-      className="min-h-screen flex-1 transition-[margin] duration-300 ease-in-out"
+      className="flex h-screen min-h-0 flex-1 flex-col overflow-y-auto transition-[margin] duration-300 ease-in-out"
       style={{ marginLeft: width }}
     >
       {isMobile && (
@@ -28,7 +28,7 @@ export default function MainContent({
           <span className="ml-3 font-serif text-sm font-semibold text-paper-ink">E&M Dashboard</span>
         </div>
       )}
-      <main className="flex min-h-screen flex-col py-6 px-4 sm:py-8 sm:px-6 md:px-10 lg:px-14">
+      <main className="flex flex-1 flex-col py-6 px-4 sm:py-8 sm:px-6 md:px-10 lg:px-14">
         {children}
       </main>
     </div>

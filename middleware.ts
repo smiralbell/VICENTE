@@ -47,6 +47,9 @@ export const config = {
     "/transcriptions",
     "/transcriptions/:path*",
     "/api/transcriptions",
+    "/api/settings",
+    "/api/webhook-offwork",
+    "/api/webhook-system",
     "/login",
   ],
 };

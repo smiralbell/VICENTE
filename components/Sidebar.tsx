@@ -14,7 +14,7 @@ const NAV = [
 export default function Sidebar() {
   const pathname = usePathname();
   const prevPathnameRef = useRef(pathname);
-  const { collapsed, toggle, width, offWorkOnly, setOffWorkOnly, systemPublished, setSystemPublished, mobileOpen, setMobileOpen, isMobile } = useSidebar();
+  const { collapsed, toggle, width, offWorkOnly, systemPublished, toggleOffWorkOnly, toggleSystemPublished, mobileOpen, setMobileOpen, isMobile } = useSidebar();
 
   useEffect(() => {
     if (prevPathnameRef.current !== pathname) {
@@ -139,14 +139,7 @@ export default function Sidebar() {
                 aria-checked={systemPublished}
                 aria-label={systemPublished ? "Desactivar sistema total" : "Activar sistema total"}
                 onClick={() => {
-                  const newValue = !systemPublished;
-                  setSystemPublished(newValue);
-                  const action = newValue ? "publish" : "unpublish";
-                  fetch("/api/webhook-system", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action }),
-                  }).catch(() => {});
+                  void toggleSystemPublished();
                 }}
                 className={`relative flex h-9 w-24 shrink-0 items-center rounded-full px-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 ${
                   systemPublished ? "bg-emerald-500/90" : "bg-red-500/80"
@@ -196,14 +189,7 @@ export default function Sidebar() {
               aria-checked={offWorkOnly}
               aria-label={offWorkOnly ? "Solo horario fuera laboral (ON)" : "Funcionar siempre (OFF)"}
               onClick={() => {
-                const newValue = !offWorkOnly;
-                setOffWorkOnly(newValue);
-                const label = newValue ? "off" : "on";
-                fetch("/api/webhook-offwork", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ state: label, label }),
-                }).catch(() => {});
+                void toggleOffWorkOnly();
               }}
               className={`relative flex h-9 w-24 shrink-0 items-center rounded-full px-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 ${
                 offWorkOnly ? "bg-emerald-500/90" : "bg-white/25"

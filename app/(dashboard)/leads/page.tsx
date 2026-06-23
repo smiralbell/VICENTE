@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { getLeadsPaginated, isLeadSortField } from "@/lib/db";
+import { getLeadsPaginated, isLeadSortField, findTranscriptionIdForLead, findSessionIdForLead } from "@/lib/db";
+import { isFormularioSource, isWebChatSource } from "@/lib/leadNavigation";
 import LeadsTable from "./LeadsTable";
 import LeadsToolbar from "./LeadsToolbar";
 
@@ -26,6 +27,23 @@ export default async function LeadsPage({ searchParams }: Props) {
     order,
     sortField as import("@/lib/db").LeadSortField
   );
+
+  const leadsWithNavigation = await Promise.all(
+    leads.map(async (lead) => {
+      if (isFormularioSource(lead.source)) {
+        const transcriptionId = await findTranscriptionIdForLead(lead);
+        return { ...lead, transcriptionId };
+      }
+
+      if (isWebChatSource(lead.source)) {
+        const resolvedSessionId = await findSessionIdForLead(lead);
+        return { ...lead, resolvedSessionId };
+      }
+
+      return lead;
+    })
+  );
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -42,7 +60,7 @@ export default async function LeadsPage({ searchParams }: Props) {
 
       <div className="border-t border-paper-border">
         <LeadsTable
-          leads={leads}
+          leads={leadsWithNavigation}
           sortField={sortField}
           order={order}
           search={search}

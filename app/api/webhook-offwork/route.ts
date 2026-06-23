@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { setOffWorkOnlySetting } from "@/lib/db";
 
 const WEBHOOK_URL = process.env.WEBHOOK_OFFWORK_URL;
 
@@ -10,20 +11,21 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { state?: string };
+  let body: { offWorkOnly?: boolean };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const state = body.state === "on" || body.state === "off" ? body.state : undefined;
-  if (!state) {
+  if (typeof body.offWorkOnly !== "boolean") {
     return NextResponse.json(
-      { error: "Body must include state: 'on' or 'off'" },
+      { error: "Body must include offWorkOnly: boolean" },
       { status: 400 }
     );
   }
+
+  const state = body.offWorkOnly ? "off" : "on";
 
   try {
     const url = new URL(WEBHOOK_URL);
@@ -33,10 +35,7 @@ export async function POST(request: Request) {
     const res = await fetch(url.toString(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        state,
-        label: state,
-      }),
+      body: JSON.stringify({ state, label: state }),
     });
     if (!res.ok) {
       return NextResponse.json(
@@ -44,8 +43,10 @@ export async function POST(request: Request) {
         { status: 502 }
       );
     }
-    return NextResponse.json({ ok: true, state });
-  } catch (err) {
+
+    const settings = await setOffWorkOnlySetting(body.offWorkOnly);
+    return NextResponse.json({ ok: true, state, ...settings });
+  } catch {
     return NextResponse.json(
       { error: "Webhook request failed" },
       { status: 502 }

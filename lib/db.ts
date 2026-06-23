@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { datesMatch, pickBestByDate } from "./parseDate";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -48,6 +49,13 @@ export type SessionSummary = {
 const LEADS_TABLE = "eliasymunozabogados_leads";
 const CHAT_TABLE = "eliasymunozabogados_chat_histories";
 const TRANSCRIPTIONS_TABLE = "eliasmunozabogados_transcripciones";
+const SETTINGS_TABLE = "dashboard_settings";
+
+export type DashboardSettings = {
+  offWorkOnly: boolean;
+  systemPublished: boolean;
+  updatedAt: Date | null;
+};
 
 export type Transcription = {
   id: number;
@@ -260,6 +268,101 @@ export async function getConversationSessionsWithLeadAndPreview(
   }));
 }
 
+export async function findTranscriptionIdForLead(lead: {
+  phone: string | null;
+  email: string;
+  name: string;
+  fecha: Date | string | null;
+  created_at?: Date | string | null;
+}): Promise<number | null> {
+  const candidates = new Map<number, { id: number; fecha: Date | string | null }>();
+
+  const addRows = (rows: { id: number; fecha: Date | string | null }[]) => {
+    for (const row of rows) {
+      candidates.set(row.id, row);
+    }
+  };
+
+  if (lead.phone?.trim()) {
+    const { rows } = await query<{ id: number; fecha: Date | string | null }>(
+      `SELECT id, fecha FROM ${TRANSCRIPTIONS_TABLE} WHERE phone = $1 ORDER BY fecha DESC NULLS LAST, id DESC`,
+      [lead.phone.trim()]
+    );
+    addRows(rows);
+  }
+
+  if (lead.email?.trim()) {
+    const { rows } = await query<{ id: number; fecha: Date | string | null }>(
+      `SELECT id, fecha FROM ${TRANSCRIPTIONS_TABLE} WHERE LOWER(mail) = LOWER($1) ORDER BY fecha DESC NULLS LAST, id DESC`,
+      [lead.email.trim()]
+    );
+    addRows(rows);
+  }
+
+  if (lead.name?.trim()) {
+    const { rows } = await query<{ id: number; fecha: Date | string | null }>(
+      `SELECT id, fecha FROM ${TRANSCRIPTIONS_TABLE} WHERE LOWER(name) = LOWER($1) ORDER BY fecha DESC NULLS LAST, id DESC`,
+      [lead.name.trim()]
+    );
+    addRows(rows);
+  }
+
+  const list = Array.from(candidates.values());
+  if (list.length === 0) return null;
+  if (list.length === 1) return list[0].id;
+
+  const targetDate = lead.fecha ?? lead.created_at ?? null;
+  const best = pickBestByDate(list, targetDate);
+  return best?.id ?? null;
+}
+
+export async function findSessionIdForLead(lead: {
+  id: number;
+  phone: string | null;
+  fecha: Date | string | null;
+  created_at: Date;
+  session_id: string | null;
+}): Promise<string | null> {
+  if (lead.session_id?.trim() && !lead.phone?.trim()) {
+    return lead.session_id.trim();
+  }
+
+  if (!lead.phone?.trim()) {
+    return lead.session_id?.trim() || null;
+  }
+
+  const { rows } = await query<{
+    id: number;
+    session_id: string;
+    fecha: Date | string | null;
+    created_at: Date;
+  }>(
+    `SELECT id, session_id, fecha, created_at FROM ${LEADS_TABLE}
+     WHERE phone = $1 AND session_id IS NOT NULL AND session_id != ''
+     ORDER BY created_at DESC`,
+    [lead.phone.trim()]
+  );
+
+  if (rows.length === 0) return lead.session_id?.trim() || null;
+
+  const current = rows.find((row) => row.id === lead.id);
+  if (current?.session_id) return current.session_id;
+
+  const targetDate = lead.fecha ?? lead.created_at;
+
+  if (lead.fecha) {
+    const byFecha = rows.find((row) => datesMatch(lead.fecha, row.fecha));
+    if (byFecha) return byFecha.session_id;
+  }
+
+  const byCreated = rows.find((row) => datesMatch(targetDate, row.created_at));
+  if (byCreated) return byCreated.session_id;
+
+  if (lead.session_id?.trim()) return lead.session_id.trim();
+
+  return current?.session_id ?? rows[0]?.session_id ?? null;
+}
+
 export async function getTranscriptions(
   search?: string
 ): Promise<Transcription[]> {
@@ -293,4 +396,78 @@ export async function getTranscriptionById(
     [id]
   );
   return rows[0] ?? null;
+}
+
+export async function getDashboardSettings(): Promise<DashboardSettings> {
+  const defaults: DashboardSettings = {
+    offWorkOnly: false,
+    systemPublished: true,
+    updatedAt: null,
+  };
+
+  try {
+    const { rows } = await query<{
+      offwork_only: boolean;
+      system_published: boolean;
+      updated_at: Date | null;
+    }>(
+      `SELECT offwork_only, system_published, updated_at FROM ${SETTINGS_TABLE} WHERE id = 1`
+    );
+    const row = rows[0];
+    if (!row) return defaults;
+
+    return {
+      offWorkOnly: row.offwork_only,
+      systemPublished: row.system_published,
+      updatedAt: row.updated_at,
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+export async function setOffWorkOnlySetting(value: boolean): Promise<DashboardSettings> {
+  const { rows } = await query<{
+    offwork_only: boolean;
+    system_published: boolean;
+    updated_at: Date | null;
+  }>(
+    `UPDATE ${SETTINGS_TABLE}
+     SET offwork_only = $1, updated_at = NOW()
+     WHERE id = 1
+     RETURNING offwork_only, system_published, updated_at`,
+    [value]
+  );
+  const row = rows[0];
+  if (!row) return getDashboardSettings();
+
+  return {
+    offWorkOnly: row.offwork_only,
+    systemPublished: row.system_published,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function setSystemPublishedSetting(
+  value: boolean
+): Promise<DashboardSettings> {
+  const { rows } = await query<{
+    offwork_only: boolean;
+    system_published: boolean;
+    updated_at: Date | null;
+  }>(
+    `UPDATE ${SETTINGS_TABLE}
+     SET system_published = $1, updated_at = NOW()
+     WHERE id = 1
+     RETURNING offwork_only, system_published, updated_at`,
+    [value]
+  );
+  const row = rows[0];
+  if (!row) return getDashboardSettings();
+
+  return {
+    offWorkOnly: row.offwork_only,
+    systemPublished: row.system_published,
+    updatedAt: row.updated_at,
+  };
 }

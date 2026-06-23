@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useCallback, useState } from "react";
-import type { Lead, LeadSortField } from "@/lib/db";
+import type { LeadSortField } from "@/lib/db";
+import type { LeadWithNavigation } from "@/lib/leadNavigation";
+import { getLeadNavigationPath } from "@/lib/leadNavigation";
 
 function parseDate(value: Date | string | null | undefined): Date | null {
   if (!value) return null;
@@ -123,7 +125,7 @@ function buildSortUrl(
 }
 
 type Props = {
-  leads: Lead[];
+  leads: LeadWithNavigation[];
   sortField: string;
   order: string;
   search: string;
@@ -158,12 +160,8 @@ export default function LeadsTable({
   );
   const hideSummaryTooltip = useCallback(() => setTooltip(null), []);
 
-  const handleRowClick = (lead: Lead) => {
-    if (lead.session_id) {
-      router.push(`/conversations/${encodeURIComponent(lead.session_id)}`);
-    } else {
-      router.push(`/leads/${lead.id}`);
-    }
+  const handleRowClick = (lead: LeadWithNavigation) => {
+    router.push(getLeadNavigationPath(lead));
   };
 
   if (leads.length === 0) {
