@@ -9,6 +9,7 @@ const NAV = [
   { href: "/leads", label: "Leads" },
   { href: "/conversations", label: "Conversaciones" },
   { href: "/transcriptions", label: "Transcripciones" },
+  { href: "/tickets", label: "Tickets" },
 ];
 
 export default function Sidebar() {
@@ -114,11 +115,15 @@ export default function Sidebar() {
                   <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
-                ) : (
+                ) : href === "/transcriptions" ? (
                   <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h18M3 10h18M3 15h10" />
                   </svg>
-                )}
+                ) : href === "/tickets" ? (
+                  <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                  </svg>
+                ) : null}
                 {(!collapsed || isMobile) && <span>{label}</span>}
               </Link>
             );
