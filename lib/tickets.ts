@@ -235,3 +235,11 @@ export async function getTicketWithUpdates(
   const updates = await getTicketUpdates(id);
   return { ticket, updates };
 }
+
+export async function deleteTicket(id: number): Promise<boolean> {
+  const { rowCount } = await query(
+    `DELETE FROM ${TICKETS_TABLE} WHERE id = $1`,
+    [id]
+  );
+  return (rowCount ?? 0) > 0;
+}

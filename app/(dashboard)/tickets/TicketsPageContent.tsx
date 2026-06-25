@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CreateTicketModal from "./CreateTicketModal";
 import TicketDetailModal from "./TicketDetailModal";
+import TicketRowMenu from "./TicketRowMenu";
 import {
   STATUS_FILTERS,
   formatDate,
@@ -20,6 +21,7 @@ export default function TicketsPageContent() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -53,6 +55,31 @@ export default function TicketsPageContent() {
 
   const openDetail = (id: number) => setSelectedTicketId(id);
   const closeDetail = () => setSelectedTicketId(null);
+
+  const handleDeleteTicket = async (ticket: TicketListItem) => {
+    const label = ticket.title || ticket.external_id;
+    const confirmed = window.confirm(
+      `¿Eliminar «${label}»?\n\nSe borrará del listado. Esta acción no se puede deshacer.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(ticket.id);
+    try {
+      const res = await fetch(`/api/tickets/${ticket.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "No se pudo eliminar la incidencia");
+      }
+      if (selectedTicketId === ticket.id) closeDetail();
+      await loadTickets();
+    } catch (err) {
+      window.alert(
+        err instanceof Error ? err.message : "No se pudo eliminar la incidencia"
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="w-full">
@@ -171,14 +198,21 @@ export default function TicketsPageContent() {
             <div className="space-y-3 md:hidden">
               {filteredTickets.map((ticket) => {
                 const pill = getStatusPill(ticket.status);
+                const isDeleting = deletingId === ticket.id;
                 return (
-                  <button
+                  <div
                     key={ticket.id}
-                    type="button"
-                    onClick={() => openDetail(ticket.id)}
-                    className="w-full rounded-xl border border-paper-border bg-paper-card p-4 text-left shadow-sm transition-colors hover:bg-brand-subtle/50 active:bg-brand-subtle focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
+                    className={`relative rounded-xl border border-paper-border bg-paper-card p-4 shadow-sm ${
+                      isDeleting ? "opacity-60" : ""
+                    }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="absolute right-2 top-2">
+                      <TicketRowMenu
+                        onView={() => openDetail(ticket.id)}
+                        onDelete={() => void handleDeleteTicket(ticket)}
+                      />
+                    </div>
+                    <div className="flex items-start justify-between gap-3 pr-10">
                       <div className="min-w-0">
                         <p className="font-medium text-paper-ink">
                           {ticket.title || "Sin título"}
@@ -205,21 +239,22 @@ export default function TicketsPageContent() {
                         {ticket.latest_message}
                       </p>
                     )}
-                    <p className="mt-2 text-xs font-medium text-brand">Ver seguimiento →</p>
-                  </button>
+                  </div>
                 );
               })}
             </div>
 
-            <div className="overflow-x-auto max-md:hidden">
-              <table className="w-full table-fixed" role="grid">
+            <div className="w-full max-md:hidden">
+              <table className="w-full" role="grid">
                 <thead>
                   <tr className="border-b border-paper-border">
-                    {["Referencia", "Título", "Estado", "Prioridad", "Creado", "Última respuesta"].map(
-                      (label) => (
+                    {["Referencia", "Título", "Estado", "Prioridad", "Creado", "Última respuesta", ""].map(
+                      (label, i) => (
                         <th
-                          key={label}
-                          className="px-3 py-2.5 text-left text-[11px] font-medium tracking-wide text-paper-muted lg:py-3 lg:text-xs"
+                          key={label || `col-${i}`}
+                          className={`px-3 py-2.5 text-left text-[11px] font-medium tracking-wide text-paper-muted lg:py-3 lg:text-xs ${
+                            i === 6 ? "w-14 px-1 text-center" : ""
+                          }`}
                         >
                           {label}
                         </th>
@@ -230,41 +265,41 @@ export default function TicketsPageContent() {
                 <tbody>
                   {filteredTickets.map((ticket) => {
                     const pill = getStatusPill(ticket.status);
+                    const isDeleting = deletingId === ticket.id;
                     return (
                       <tr
                         key={ticket.id}
-                        onClick={() => openDetail(ticket.id)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            openDetail(ticket.id);
-                          }
-                        }}
-                        className="cursor-pointer border-b border-paper-border transition-colors hover:bg-brand-subtle/50 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-inset"
+                        className={`border-b border-paper-border transition-colors hover:bg-brand-subtle/30 ${
+                          isDeleting ? "opacity-60" : ""
+                        }`}
                       >
-                        <td className="truncate px-3 py-3 font-mono text-[11px] text-paper-muted lg:text-xs">
+                        <td className="max-w-[8rem] truncate px-3 py-3 font-mono text-[11px] text-paper-muted lg:max-w-[10rem] lg:text-xs">
                           {ticket.external_id}
                         </td>
-                        <td className="truncate px-3 py-3 text-sm font-medium text-paper-ink">
+                        <td className="max-w-[12rem] truncate px-3 py-3 text-sm font-medium text-paper-ink lg:max-w-none">
                           {ticket.title || "Sin título"}
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="whitespace-nowrap px-3 py-3">
                           <span
                             className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${pill.className}`}
                           >
                             {pill.label}
                           </span>
                         </td>
-                        <td className={`px-3 py-3 text-sm ${getPriorityClass(ticket.priority)}`}>
+                        <td className={`whitespace-nowrap px-3 py-3 text-sm ${getPriorityClass(ticket.priority)}`}>
                           {getPriorityLabel(ticket.priority)}
                         </td>
                         <td className="whitespace-nowrap px-3 py-3 text-xs text-paper-muted">
                           {formatDate(ticket.created_at)}
                         </td>
-                        <td className="truncate px-3 py-3 text-sm text-paper-inkLight">
+                        <td className="max-w-[14rem] truncate px-3 py-3 text-sm text-paper-inkLight lg:max-w-[18rem]">
                           {ticket.latest_message ?? "—"}
+                        </td>
+                        <td className="w-14 px-1 py-3 text-center">
+                          <TicketRowMenu
+                            onView={() => openDetail(ticket.id)}
+                            onDelete={() => void handleDeleteTicket(ticket)}
+                          />
                         </td>
                       </tr>
                     );
