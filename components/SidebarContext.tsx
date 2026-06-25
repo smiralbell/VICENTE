@@ -1,13 +1,15 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 const STORAGE_KEY = "sidebar-collapsed";
 const MOBILE_BREAKPOINT = 768;
+const SETTINGS_POLL_MS = 5000;
 
 type DashboardSettingsResponse = {
   offWorkOnly: boolean;
   systemPublished: boolean;
+  updatedAt?: string | null;
 };
 
 type Context = {
@@ -36,6 +38,10 @@ async function fetchSettings(): Promise<DashboardSettingsResponse | null> {
   }
 }
 
+function settingsFingerprint(settings: DashboardSettingsResponse): string {
+  return `${settings.updatedAt ?? ""}|${settings.offWorkOnly}|${settings.systemPublished}`;
+}
+
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [offWorkOnly, setOffWorkOnly] = useState(false);
@@ -43,14 +49,23 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const lastFingerprintRef = useRef<string | null>(null);
+  const togglingRef = useRef(0);
 
   const applySettings = useCallback((settings: DashboardSettingsResponse) => {
+    const fingerprint = settingsFingerprint(settings);
+    if (lastFingerprintRef.current === fingerprint) {
+      setSettingsLoaded(true);
+      return;
+    }
+    lastFingerprintRef.current = fingerprint;
     setOffWorkOnly(settings.offWorkOnly);
     setSystemPublished(settings.systemPublished);
     setSettingsLoaded(true);
   }, []);
 
   const loadSettings = useCallback(async () => {
+    if (togglingRef.current > 0) return;
     const settings = await fetchSettings();
     if (settings) applySettings(settings);
     else setSettingsLoaded(true);
@@ -60,15 +75,28 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     try {
       setCollapsed(localStorage.getItem(STORAGE_KEY) === "true");
     } catch {}
-    loadSettings();
+    void loadSettings();
   }, [loadSettings]);
 
   useEffect(() => {
-    const onFocus = () => {
-      loadSettings();
+    const refresh = () => {
+      void loadSettings();
     };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    const intervalId = window.setInterval(refresh, SETTINGS_POLL_MS);
+
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.clearInterval(intervalId);
+    };
   }, [loadSettings]);
 
   useEffect(() => {
@@ -92,6 +120,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const toggleOffWorkOnly = useCallback(async () => {
     const previous = offWorkOnly;
     const next = !previous;
+    togglingRef.current += 1;
     setOffWorkOnly(next);
 
     try {
@@ -102,16 +131,22 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
       });
       if (!res.ok) throw new Error("request failed");
       const data = await res.json();
-      setOffWorkOnly(Boolean(data.offWorkOnly));
-      setSystemPublished(Boolean(data.systemPublished));
+      applySettings({
+        offWorkOnly: Boolean(data.offWorkOnly),
+        systemPublished: Boolean(data.systemPublished),
+        updatedAt: data.updatedAt ?? new Date().toISOString(),
+      });
     } catch {
       setOffWorkOnly(previous);
+    } finally {
+      togglingRef.current -= 1;
     }
-  }, [offWorkOnly]);
+  }, [offWorkOnly, applySettings]);
 
   const toggleSystemPublished = useCallback(async () => {
     const previous = systemPublished;
     const next = !previous;
+    togglingRef.current += 1;
     setSystemPublished(next);
 
     try {
@@ -122,12 +157,17 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
       });
       if (!res.ok) throw new Error("request failed");
       const data = await res.json();
-      setOffWorkOnly(Boolean(data.offWorkOnly));
-      setSystemPublished(Boolean(data.systemPublished));
+      applySettings({
+        offWorkOnly: Boolean(data.offWorkOnly),
+        systemPublished: Boolean(data.systemPublished),
+        updatedAt: data.updatedAt ?? new Date().toISOString(),
+      });
     } catch {
       setSystemPublished(previous);
+    } finally {
+      togglingRef.current -= 1;
     }
-  }, [systemPublished]);
+  }, [systemPublished, applySettings]);
 
   const width = isMobile ? 0 : collapsed ? 72 : 280;
 
