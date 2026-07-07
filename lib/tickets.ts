@@ -125,6 +125,14 @@ export async function getTicketByExternalId(
   return rows[0] ?? null;
 }
 
+export async function getTicketById(id: number): Promise<Ticket | null> {
+  const { rows } = await query<Ticket>(
+    `SELECT * FROM ${TICKETS_TABLE} WHERE id = $1`,
+    [id]
+  );
+  return rows[0] ?? null;
+}
+
 export async function getTicketByBuffaloId(
   buffaloTicketId: string
 ): Promise<Ticket | null> {
@@ -242,4 +250,27 @@ export async function deleteTicket(id: number): Promise<boolean> {
     [id]
   );
   return (rowCount ?? 0) > 0;
+}
+
+export async function deleteTicketByIdentifiers(input: {
+  external_id?: string;
+  buffalo_ticket_id?: string;
+}): Promise<boolean> {
+  if (input.external_id) {
+    const { rowCount } = await query(
+      `DELETE FROM ${TICKETS_TABLE} WHERE external_id = $1`,
+      [input.external_id]
+    );
+    if ((rowCount ?? 0) > 0) return true;
+  }
+
+  if (input.buffalo_ticket_id) {
+    const { rowCount } = await query(
+      `DELETE FROM ${TICKETS_TABLE} WHERE buffalo_ticket_id = $1`,
+      [input.buffalo_ticket_id]
+    );
+    return (rowCount ?? 0) > 0;
+  }
+
+  return false;
 }

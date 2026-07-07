@@ -46,8 +46,12 @@ function buildTimeline(detail: TicketDetail): TimelineEntry[] {
       title:
         update.event === "status_change" && statusLabel
           ? `Estado actualizado a «${statusLabel}»`
-          : update.event === "comment"
-            ? "Nuevo comentario"
+          : update.event === "comment" || update.event === "ticket.updated"
+            ? update.message
+              ? "Nuevo comentario"
+              : statusLabel
+                ? `Estado actualizado a «${statusLabel}»`
+                : "Actualización de soporte"
             : "Actualización de soporte",
       message: update.message,
       status: update.status,

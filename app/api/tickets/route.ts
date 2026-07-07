@@ -5,14 +5,7 @@ import {
   getTickets,
   setBuffaloTicketId,
 } from "@/lib/tickets";
-
-const WEBHOOK_URL =
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:3000/api/webhooks/tickets"
-    : "https://n8n-crmv2-buffalo.zedf6b.easypanel.host/api/webhooks/tickets";
-
-const PROJECT_REF = process.env.BUFFALO_PROJECT_REF;
-const TICKETS_WEBHOOK_TOKEN = process.env.BUFFALO_TICKETS_WEBHOOK_TOKEN;
+import { getBuffaloWebhookConfig } from "@/lib/buffaloWebhook";
 
 export async function GET() {
   try {
@@ -24,12 +17,16 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!WEBHOOK_URL || !TICKETS_WEBHOOK_TOKEN || !PROJECT_REF) {
+  const webhookConfig = getBuffaloWebhookConfig();
+  if (!webhookConfig) {
     return NextResponse.json(
       { error: "Tickets webhook is not configured correctly" },
       { status: 500 }
     );
   }
+
+  const { url: WEBHOOK_URL, token: TICKETS_WEBHOOK_TOKEN, projectRef: PROJECT_REF } =
+    webhookConfig;
 
   let body: {
     title?: string;
