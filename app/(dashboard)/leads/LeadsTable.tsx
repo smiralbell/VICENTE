@@ -49,7 +49,6 @@ const COLUMNS: { key: LeadSortField | null; label: string }[] = [
   { key: null, label: "Teléfono" },
   { key: null, label: "Llamada" },
   { key: null, label: "Gestión" },
-  { key: null, label: "Resumen" },
   { key: null, label: "Horario reunión" },
   { key: null, label: "Modalidad" },
   { key: "created_at", label: "Creado" },
@@ -300,13 +299,6 @@ export default function LeadsTable({
               </td>
               <td className="py-2.5 px-2 text-xs lg:py-3 lg:px-3 lg:text-sm">
                 <GestionSelect leadId={lead.id} value={lead.gestion_estado} compact />
-              </td>
-              <td
-                className="max-w-[160px] truncate py-2.5 px-2 text-xs text-paper-muted lg:max-w-[200px] lg:py-3 lg:px-3 lg:text-sm"
-                onMouseEnter={(e) => showSummaryTooltip(e, lead.summary ?? null)}
-                onMouseLeave={hideSummaryTooltip}
-              >
-                {lead.summary ?? "—"}
               </td>
               <td className="whitespace-nowrap py-2.5 px-2 text-[11px] text-paper-muted lg:py-3 lg:px-3 lg:text-xs">
                 {horarioOf(lead)}

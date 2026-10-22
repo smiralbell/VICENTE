@@ -67,10 +67,6 @@ export default function LeadPanel({ lead, fallback, summaryLabel = "Resumen" }: 
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-paper-muted">{summaryLabel}</h2>
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-paper-inkLight">{dash(lead?.summary)}</p>
-      </section>
     </div>
   );
 }

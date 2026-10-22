@@ -25,7 +25,7 @@ export default function ConversationsLayout({ children }: Props) {
   const showChatMobile = isConversationPage;
 
   return (
-    <div className="-mx-4 -my-6 flex h-[calc(100vh-8rem)] w-full shrink-0 flex-col overflow-hidden sm:-mx-6 md:-mx-10 md:-my-8 md:h-screen lg:-mx-14">
+    <div className="-mx-4 -my-6 flex h-[calc(100vh-8rem)] w-[calc(100%+2rem)] shrink-0 flex-col overflow-hidden sm:-mx-6 sm:w-[calc(100%+3rem)] md:-mx-10 md:-my-8 md:w-[calc(100%+5rem)] md:h-screen lg:-mx-14 lg:w-[calc(100%+7rem)]">
       <Suspense fallback={null}>
         <ConversationsKpiBar />
       </Suspense>
