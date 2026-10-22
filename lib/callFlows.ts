@@ -43,31 +43,63 @@ function phoneOf(call: RetellCall): string {
   return call.retell_llm_dynamic_variables?.phone || call.to_number || "";
 }
 
-async function getCallAttempts(phone: string): Promise<number> {
-  const { rows } = await query<{ call_attempts: number | null }>(
-    `SELECT call_attempts FROM ${LEADS_TABLE} WHERE session_id = $1 LIMIT 1`,
+type LeadForRetry = { name: string | null; email: string | null; summary: string | null; call_attempts: number | null };
+
+async function getLeadForRetry(phone: string): Promise<LeadForRetry | undefined> {
+  const { rows } = await query<LeadForRetry>(
+    `SELECT name, email, summary, call_attempts FROM ${LEADS_TABLE} WHERE session_id = $1 LIMIT 1`,
     [phone]
   );
-  return rows[0]?.call_attempts ?? 0;
+  return rows[0];
 }
 
 async function setStatus(phone: string, status: string): Promise<void> {
   await query(`UPDATE ${LEADS_TABLE} SET status = $2 WHERE session_id = $1`, [phone, status]);
 }
 
-// Primer intento sin respuesta: reintentar. Segundo: marcar como no contesta.
 async function markNoAnswer(phone: string, attempts: number): Promise<void> {
-  if (attempts === 0) {
-    await query(
-      `UPDATE ${LEADS_TABLE} SET status = 'retry_pending', call_attempts = 1, last_call_at = NOW() WHERE session_id = $1`,
-      [phone]
-    );
+  await query(
+    `UPDATE ${LEADS_TABLE} SET status = 'no_answer', call_attempts = $2, last_call_at = NOW() WHERE session_id = $1`,
+    [phone, attempts]
+  );
+}
+
+// Si la persona no contesta, se vuelve a llamar en el momento, una sola vez.
+// Si tampoco contesta (o el sistema está apagado), queda como "No contesta" y no se llama más.
+async function retryOnceOrGiveUp(call: RetellCall, phone: string): Promise<void> {
+  const lead = await getLeadForRetry(phone);
+  const attempts = lead?.call_attempts ?? 0;
+
+  if (attempts >= 1) {
+    await markNoAnswer(phone, 2);
     return;
   }
+  if (!(await isSystemOn())) {
+    await markNoAnswer(phone, attempts);
+    return;
+  }
+
   await query(
-    `UPDATE ${LEADS_TABLE} SET status = 'no_answer', call_attempts = 2, last_call_at = NOW() WHERE session_id = $1`,
+    `UPDATE ${LEADS_TABLE} SET status = 'retry_pending', call_attempts = 1, last_call_at = NOW() WHERE session_id = $1`,
     [phone]
   );
+  try {
+    await createPhoneCall({
+      fromNumber: requireEnv("RETELL_FROM_NUMBER"),
+      toNumber: phone,
+      agentId: requireEnv("RETELL_OUTBOUND_AGENT_ID"),
+      dynamicVariables: {
+        name: lead?.name ?? call.retell_llm_dynamic_variables?.name ?? "",
+        phone,
+        email: lead?.email ?? "",
+        summaryCase: lead?.summary ?? "",
+        source: "Formulario",
+      },
+    });
+  } catch (error) {
+    reportIncident("callFlows", error);
+    await markNoAnswer(phone, 1);
+  }
 }
 
 async function setSummary(phone: string, summary: string): Promise<void> {
@@ -95,8 +127,7 @@ export async function handleRetellCallEvent(payload: RetellWebhookPayload): Prom
 
   if (payload.event === "call_ended") {
     if (NO_ANSWER_REASONS.has(call.disconnection_reason ?? "")) {
-      const attempts = await getCallAttempts(phone);
-      await markNoAnswer(phone, attempts);
+      await retryOnceOrGiveUp(call, phone);
     } else {
       await setStatus(phone, "contacted");
     }
@@ -162,53 +193,4 @@ export async function handleInboundCall(payload: InboundPayload) {
       },
     },
   };
-}
-
-type RetryLead = { id: number; name: string | null; phone: string | null; email: string | null; summary: string | null };
-
-// Reintentos: leads con retry_pending, sin llamar en los últimos 10 minutos y con menos de 2 intentos.
-export async function runRetryCalls(): Promise<{ total: number; created: number; failed: number }> {
-  if (!(await isSystemOn())) {
-    return { total: 0, created: 0, failed: 0 };
-  }
-
-  const fromNumber = requireEnv("RETELL_FROM_NUMBER");
-  const agentId = requireEnv("RETELL_OUTBOUND_AGENT_ID");
-
-  const { rows } = await query<RetryLead>(
-    `SELECT id, name, phone, email, summary FROM ${LEADS_TABLE}
-     WHERE last_call_at <= NOW() - INTERVAL '10 minutes' AND status = 'retry_pending' AND call_attempts < 2`
-  );
-
-  let created = 0;
-  let failed = 0;
-
-  for (const lead of rows) {
-    if (!lead.phone) continue;
-    try {
-      // Se cuenta el intento antes de llamar: si el evento final no llega, no se vuelve a llamar sin fin.
-      await query(
-        `UPDATE ${LEADS_TABLE} SET last_call_at = NOW(), call_attempts = call_attempts + 1 WHERE id = $1`,
-        [lead.id]
-      );
-      await createPhoneCall({
-        fromNumber,
-        toNumber: lead.phone,
-        agentId,
-        dynamicVariables: {
-          name: lead.name ?? "",
-          phone: lead.phone,
-          email: lead.email ?? "",
-          summaryCase: lead.summary ?? "",
-          source: "Formulario",
-        },
-      });
-      created++;
-    } catch (error) {
-      reportIncident("callFlows", error);
-      failed++;
-    }
-  }
-
-  return { total: rows.length, created, failed };
 }

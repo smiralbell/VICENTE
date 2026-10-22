@@ -26,13 +26,13 @@ export const CALL_STATES: Record<string, { label: string; description: string; c
   },
   no_answer: {
     label: "No contesta",
-    description: "Se llamó dos veces y nadie contestó. No se volverá a llamar automáticamente.",
+    description: "Se llamó y nadie contestó, ni en el segundo intento. No se volverá a llamar automáticamente.",
     className: "bg-rose-100 text-rose-800 border border-rose-200",
     dot: "bg-rose-500",
   },
   retry_pending: {
     label: "Reintento pendiente",
-    description: "No contestó la primera llamada. Está programado un segundo intento automático.",
+    description: "No contestó la primera llamada. Se está haciendo el segundo intento automático.",
     className: "bg-orange-100 text-orange-800 border border-orange-200",
     dot: "bg-orange-500",
   },
