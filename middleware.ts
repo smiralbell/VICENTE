@@ -51,6 +51,8 @@ export const config = {
     "/tickets/:path*",
     "/calendario",
     "/calendario/:path*",
+    "/consumo",
+    "/consumo/:path*",
     "/api/tickets",
     "/api/tickets/:path*",
     "/api/settings",
