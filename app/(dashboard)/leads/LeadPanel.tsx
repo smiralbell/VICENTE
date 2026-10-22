@@ -1,6 +1,6 @@
 import type { Lead } from "@/lib/db";
 import { formatMadrid } from "@/lib/dateFormat";
-import { getCallState, getOriginPill, getStatusPill, hasAppointment } from "@/lib/leadFilters";
+import { getCallState, getOriginPill, hasAppointment } from "@/lib/leadFilters";
 import GestionSelect from "./GestionSelect";
 
 type Fallback = {
@@ -22,7 +22,7 @@ export default function LeadPanel({ lead, fallback, summaryLabel = "Resumen" }: 
   const name = lead?.name || fallback?.name || null;
   const phone = lead?.phone || fallback?.phone || null;
   const email = lead?.email || fallback?.email || null;
-  const call = lead ? getCallState(lead) : getStatusPill(null);
+  const call = lead ? getCallState(lead) : { label: "–", description: "Todavía no hay lead.", className: "bg-paper-border text-paper-muted" };
 
   const rows: [string, string][] = [
     ["Nombre", dash(name)],
@@ -38,7 +38,7 @@ export default function LeadPanel({ lead, fallback, summaryLabel = "Resumen" }: 
     <div className="space-y-6">
       <section>
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-paper-muted">Datos del usuario</h2>
-        {!lead && <p className="mb-3 text-xs text-paper-muted">No hay un lead asociado a esta conversación.</p>}
+        {!lead && <p className="mb-3 text-xs text-paper-muted">Todavía no hay lead. Se crea cuando el asistente agenda una cita o deriva el caso; los datos de abajo son los que ha dado en el chat.</p>}
         <dl className="space-y-2.5">
           {rows.map(([label, value]) => (
             <div key={label} className="flex items-start justify-between gap-3 text-sm">

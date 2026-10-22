@@ -1,6 +1,7 @@
 import { getMessagesBySessionId, getLeadBySessionId } from "@/lib/db";
 import ChatBubble from "./ChatBubble";
 import LeadPanel from "../../leads/LeadPanel";
+import { getChatDatos } from "@/lib/chat/datos";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +13,10 @@ export default async function ConversationDetailPage({ params }: Props) {
   const { sessionId } = await params;
   const decodedId = decodeURIComponent(sessionId);
 
-  const [messages, lead] = await Promise.all([
+  const [messages, lead, datos] = await Promise.all([
     getMessagesBySessionId(decodedId),
     getLeadBySessionId(decodedId),
+    getChatDatos(decodedId),
   ]);
 
   return (
@@ -45,7 +47,15 @@ export default async function ConversationDetailPage({ params }: Props) {
       </section>
 
       <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-paper-border bg-paper-card p-5 xl:block">
-        <LeadPanel lead={lead} fallback={{ phone: decodedId.startsWith("+") ? decodedId : null }} summaryLabel="Resumen de la conversación" />
+        <LeadPanel
+          lead={lead}
+          fallback={{
+            name: datos.name || null,
+            phone: datos.phone || (decodedId.startsWith("+") ? decodedId : null),
+            email: datos.email || null,
+          }}
+          summaryLabel="Resumen de la conversación"
+        />
       </aside>
     </div>
   );
