@@ -51,6 +51,13 @@ export default function LeadPanel({ lead, fallback, summaryLabel = "Resumen" }: 
         </dl>
       </section>
 
+      {lead?.summary && (
+        <section>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-paper-muted">{summaryLabel === "Resumen" ? "Motivo indicado" : summaryLabel}</h2>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-paper-ink">{lead.summary}</p>
+        </section>
+      )}
+
       <section>
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-paper-muted">Estados</h2>
         <div className="space-y-3">
