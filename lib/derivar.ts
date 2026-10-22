@@ -101,12 +101,9 @@ export async function handleDerivar(payload: DerivarPayload): Promise<void> {
     [sessionId, payload.clientName ?? "", payload.clientPhone ?? "", payload.clientEmail ?? "", payload.summaryCase ?? "", payload.source || "Llamada de voz"]
   );
 
+  // Solo al abogado derivado. Si no se puede identificar (o su correo no es válido), al aviso general del despacho.
   const lawyer = findLawyer(payload.lawyerName);
-  const recipients = [requireEnv("EMAIL_NOTIFY_TO")];
-  if (lawyer && isSendableLawyerEmail(lawyer.email) && !recipients.includes(lawyer.email)) {
-    recipients.push(lawyer.email);
-  }
-  if (payload.clientEmail) recipients.push(payload.clientEmail);
+  const recipients = lawyer && isSendableLawyerEmail(lawyer.email) ? [lawyer.email] : [requireEnv("EMAIL_NOTIFY_TO")];
 
   await sendMail({
     to: recipients.join(", "),
