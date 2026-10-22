@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import { datesMatch, pickBestByDate } from "./parseDate";
+import type { LeadFilters } from "./leadFilters";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -49,7 +50,6 @@ export type SessionSummary = {
 const LEADS_TABLE = "eliasymunozabogados_leads";
 const CHAT_TABLE = "eliasymunozabogados_chat_histories";
 const TRANSCRIPTIONS_TABLE = "eliasmunozabogados_transcripciones";
-const SETTINGS_TABLE = "dashboard_settings";
 
 export type DashboardSettings = {
   offWorkOnly: boolean;
@@ -73,12 +73,21 @@ export function isLeadSortField(s: string): s is LeadSortField {
   return SORT_FIELDS.includes(s as LeadSortField);
 }
 
+export type LeadKpis = {
+  total: number;
+  pending: number;
+  withMeeting: number;
+  presencial: number;
+  noPresencial: number;
+};
+
 export async function getLeadsPaginated(
   page: number,
   pageSize: number,
   search?: string,
   order: "asc" | "desc" = "desc",
-  sortField: LeadSortField = "created_at"
+  sortField: LeadSortField = "created_at",
+  filters: LeadFilters = {}
 ): Promise<{ leads: Lead[]; total: number }> {
   const offset = (page - 1) * pageSize;
   let countQuery = `SELECT COUNT(*)::int FROM ${LEADS_TABLE}`;
@@ -93,6 +102,32 @@ export async function getLeadsPaginated(
     );
     params.push(`%${search.trim()}%`);
     paramIndex++;
+  }
+
+  if (filters.status) {
+    conditions.push(`status = $${paramIndex}`);
+    params.push(filters.status);
+    paramIndex++;
+  }
+
+  if (filters.from) {
+    conditions.push(`created_at >= $${paramIndex}::date`);
+    params.push(filters.from);
+    paramIndex++;
+  }
+
+  if (filters.to) {
+    conditions.push(`created_at < ($${paramIndex}::date + INTERVAL '1 day')`);
+    params.push(filters.to);
+    paramIndex++;
+  }
+
+  if (filters.modalidad === "presencial") {
+    conditions.push(`LOWER(TRIM(modalidad)) = 'presencial'`);
+  } else if (filters.modalidad === "no_presencial") {
+    conditions.push(`NULLIF(TRIM(modalidad), '') IS NOT NULL AND LOWER(TRIM(modalidad)) <> 'presencial'`);
+  } else if (filters.modalidad === "sin_reunion") {
+    conditions.push(`NULLIF(TRIM(modalidad), '') IS NULL`);
   }
 
   const whereClause = conditions.length ? ` WHERE ${conditions.join(" AND ")}` : "";
@@ -125,6 +160,32 @@ export async function getLeadsCounts(): Promise<{
   return {
     totalLeads: parseInt(rows[0]?.total ?? "0", 10),
     totalWithSessionId: parseInt(rows[0]?.with_session ?? "0", 10),
+  };
+}
+
+export async function getLeadsKpis(): Promise<LeadKpis> {
+  const { rows } = await query<{
+    total: string;
+    pending: string;
+    with_meeting: string;
+    presencial: string;
+    no_presencial: string;
+  }>(
+    `SELECT
+      COUNT(*)::text AS total,
+      COUNT(*) FILTER (WHERE status = 'pending_contact')::text AS pending,
+      COUNT(*) FILTER (WHERE NULLIF(TRIM(modalidad), '') IS NOT NULL)::text AS with_meeting,
+      COUNT(*) FILTER (WHERE LOWER(TRIM(modalidad)) = 'presencial')::text AS presencial,
+      COUNT(*) FILTER (WHERE NULLIF(TRIM(modalidad), '') IS NOT NULL AND LOWER(TRIM(modalidad)) <> 'presencial')::text AS no_presencial
+    FROM ${LEADS_TABLE}`
+  );
+  const row = rows[0];
+  return {
+    total: parseInt(row?.total ?? "0", 10),
+    pending: parseInt(row?.pending ?? "0", 10),
+    withMeeting: parseInt(row?.with_meeting ?? "0", 10),
+    presencial: parseInt(row?.presencial ?? "0", 10),
+    noPresencial: parseInt(row?.no_presencial ?? "0", 10),
   };
 }
 
@@ -398,76 +459,48 @@ export async function getTranscriptionById(
   return rows[0] ?? null;
 }
 
+const AGENT_FLAGS_TABLE = "eliasymunozabogados_dashboard_settings";
+// Claves que leen y escriben también los flujos de n8n.
+const KEY_ALWAYS_ENABLED = "agent_always_enabled";
+const KEY_ALWAYS_DISABLED = "agent_always_disabled";
+
+async function getFlagValue(key: string): Promise<string | null> {
+  const { rows } = await query<{ value: string | null }>(
+    `SELECT value FROM ${AGENT_FLAGS_TABLE} WHERE key = $1 LIMIT 1`,
+    [key]
+  );
+  return rows[0]?.value ?? null;
+}
+
+async function setFlagValue(key: string, value: string): Promise<void> {
+  const updated = await query(`UPDATE ${AGENT_FLAGS_TABLE} SET value = $2 WHERE key = $1`, [key, value]);
+  if (!updated.rowCount) {
+    await query(`INSERT INTO ${AGENT_FLAGS_TABLE} (key, value) VALUES ($1, $2)`, [key, value]);
+  }
+}
+
 export async function getDashboardSettings(): Promise<DashboardSettings> {
-  const defaults: DashboardSettings = {
-    offWorkOnly: false,
-    systemPublished: true,
-    updatedAt: null,
-  };
-
   try {
-    const { rows } = await query<{
-      offwork_only: boolean;
-      system_published: boolean;
-      updated_at: Date | null;
-    }>(
-      `SELECT offwork_only, system_published, updated_at FROM ${SETTINGS_TABLE} WHERE id = 1`
-    );
-    const row = rows[0];
-    if (!row) return defaults;
-
+    const [alwaysEnabled, alwaysDisabled] = await Promise.all([
+      getFlagValue(KEY_ALWAYS_ENABLED),
+      getFlagValue(KEY_ALWAYS_DISABLED),
+    ]);
     return {
-      offWorkOnly: row.offwork_only,
-      systemPublished: row.system_published,
-      updatedAt: row.updated_at,
+      offWorkOnly: alwaysEnabled === "false",
+      systemPublished: alwaysDisabled !== "true",
+      updatedAt: null,
     };
   } catch {
-    return defaults;
+    return { offWorkOnly: false, systemPublished: true, updatedAt: null };
   }
 }
 
 export async function setOffWorkOnlySetting(value: boolean): Promise<DashboardSettings> {
-  const { rows } = await query<{
-    offwork_only: boolean;
-    system_published: boolean;
-    updated_at: Date | null;
-  }>(
-    `UPDATE ${SETTINGS_TABLE}
-     SET offwork_only = $1, updated_at = NOW()
-     WHERE id = 1
-     RETURNING offwork_only, system_published, updated_at`,
-    [value]
-  );
-  const row = rows[0];
-  if (!row) return getDashboardSettings();
-
-  return {
-    offWorkOnly: row.offwork_only,
-    systemPublished: row.system_published,
-    updatedAt: row.updated_at,
-  };
+  await setFlagValue(KEY_ALWAYS_ENABLED, value ? "false" : "true");
+  return getDashboardSettings();
 }
 
-export async function setSystemPublishedSetting(
-  value: boolean
-): Promise<DashboardSettings> {
-  const { rows } = await query<{
-    offwork_only: boolean;
-    system_published: boolean;
-    updated_at: Date | null;
-  }>(
-    `UPDATE ${SETTINGS_TABLE}
-     SET system_published = $1, updated_at = NOW()
-     WHERE id = 1
-     RETURNING offwork_only, system_published, updated_at`,
-    [value]
-  );
-  const row = rows[0];
-  if (!row) return getDashboardSettings();
-
-  return {
-    offWorkOnly: row.offwork_only,
-    systemPublished: row.system_published,
-    updatedAt: row.updated_at,
-  };
+export async function setSystemPublishedSetting(value: boolean): Promise<DashboardSettings> {
+  await setFlagValue(KEY_ALWAYS_DISABLED, value ? "false" : "true");
+  return getDashboardSettings();
 }

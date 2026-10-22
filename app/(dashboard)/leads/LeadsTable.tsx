@@ -7,6 +7,7 @@ import { useCallback, useState } from "react";
 import type { LeadSortField } from "@/lib/db";
 import type { LeadWithNavigation } from "@/lib/leadNavigation";
 import { getLeadNavigationPath } from "@/lib/leadNavigation";
+import { getStatusPill, type LeadFilters } from "@/lib/leadFilters";
 
 function parseDate(value: Date | string | null | undefined): Date | null {
   if (!value) return null;
@@ -53,34 +54,11 @@ const COLUMNS: { key: LeadSortField | null; label: string }[] = [
   { key: null, label: "Teléfono" },
   { key: "source", label: "Fuente" },
   { key: null, label: "Estado" },
-  { key: null, label: "Intentos" },
   { key: null, label: "Resumen" },
   { key: null, label: "Horario reunión" },
   { key: null, label: "Modalidad" },
   { key: "created_at", label: "Creado" },
 ];
-
-function getStatusPill(status: string | null) {
-  if (!status) {
-    return { label: "Sin estado", className: "bg-paper-border text-paper-muted" };
-  }
-  if (status === "pending_contact") {
-    return {
-      label: "Pendiente",
-      className: "bg-amber-100 text-amber-800 border border-amber-200",
-    };
-  }
-  if (status === "contacted") {
-    return {
-      label: "Contactado",
-      className: "bg-emerald-100 text-emerald-800 border border-emerald-200",
-    };
-  }
-  return {
-    label: status,
-    className: "bg-paper-border text-paper-muted",
-  };
-}
 
 function getModalidadPill(modalidad: string | null) {
   if (!modalidad) {
@@ -112,7 +90,8 @@ function buildSortUrl(
   currentSort: string,
   currentOrder: string,
   search: string,
-  page: number
+  page: number,
+  filters: LeadFilters
 ): string {
   const params = new URLSearchParams();
   params.set("sort", field);
@@ -121,6 +100,10 @@ function buildSortUrl(
   params.set("order", nextOrder);
   params.set("page", String(page));
   if (search) params.set("q", search);
+  if (filters.status) params.set("estado", filters.status);
+  if (filters.modalidad) params.set("modalidad", filters.modalidad);
+  if (filters.from) params.set("desde", filters.from);
+  if (filters.to) params.set("hasta", filters.to);
   return `/leads?${params.toString()}`;
 }
 
@@ -130,6 +113,7 @@ type Props = {
   order: string;
   search: string;
   page: number;
+  filters: LeadFilters;
 };
 
 export default function LeadsTable({
@@ -138,6 +122,7 @@ export default function LeadsTable({
   order,
   search,
   page,
+  filters,
 }: Props) {
   const router = useRouter();
   const [tooltip, setTooltip] = useState<{
@@ -231,9 +216,6 @@ export default function LeadsTable({
                 );
               })()}
               <span>{formatDate(lead.created_at)}</span>
-              {typeof lead.call_attempts === "number" && (
-                <span>Intentos: {lead.call_attempts}</span>
-              )}
             </div>
             {lead.summary && (
               <p className="mt-2 line-clamp-2 text-sm text-paper-muted">{lead.summary}</p>
@@ -253,9 +235,7 @@ export default function LeadsTable({
                 className={`py-2.5 text-left text-[11px] font-medium tracking-wide text-paper-muted lg:py-3 lg:text-xs ${
                   label === "Resumen"
                     ? "max-w-[160px] px-2 lg:max-w-[200px] lg:px-3"
-                    : label === "Intentos"
-                      ? "w-[70px] px-1 text-center lg:w-[80px] lg:px-2"
-                      : "px-2 lg:px-3"
+                    : "px-2 lg:px-3"
                 } ${i === COLUMNS.length - 1 ? "pl-2 lg:pl-3" : ""}`}
               >
                 {key ? (
@@ -265,7 +245,8 @@ export default function LeadsTable({
                       currentSort,
                       order,
                       search,
-                      page
+                      page,
+                      filters
                     )}
                     onClick={(e) => e.stopPropagation()}
                     className="inline-flex items-center gap-1 hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand focus:ring-inset focus:ring-offset-1 rounded"
@@ -322,9 +303,6 @@ export default function LeadsTable({
                     </span>
                   );
                 })()}
-              </td>
-              <td className="w-[70px] py-2.5 px-1 text-center text-xs text-paper-inkLight lg:w-[80px] lg:py-3 lg:px-2 lg:text-sm">
-                {typeof lead.call_attempts === "number" ? lead.call_attempts : "—"}
               </td>
               <td
                 className="max-w-[160px] truncate py-2.5 px-2 text-xs text-paper-muted lg:max-w-[200px] lg:py-3 lg:px-3 lg:text-sm"

@@ -1,0 +1,29 @@
+import nodemailer from "nodemailer";
+import { requireEnv } from "./env";
+
+let transporter: nodemailer.Transporter | null = null;
+
+function getTransporter(): nodemailer.Transporter {
+  if (!transporter) {
+    const port = Number(process.env.SMTP_PORT ?? "587");
+    transporter = nodemailer.createTransport({
+      host: requireEnv("SMTP_HOST"),
+      port,
+      secure: port === 465,
+      auth: {
+        user: requireEnv("SMTP_USER"),
+        pass: requireEnv("SMTP_PASSWORD"),
+      },
+    });
+  }
+  return transporter;
+}
+
+export async function sendMail(params: { to: string; subject: string; html: string }): Promise<void> {
+  await getTransporter().sendMail({
+    from: requireEnv("EMAIL_FROM"),
+    to: params.to,
+    subject: params.subject,
+    html: params.html,
+  });
+}

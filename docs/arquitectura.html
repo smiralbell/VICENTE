@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Arquitectura del sistema</title>
+<style>
+  :root { --bg:#f5f6fa; --card:#ffffff; --ink:#1d2433; --muted:#667085; --line:#c3c9d6; --brand:#2f5bd3; --ok:#1f8a5b; --todo:#b45309; --box:#e9eefc; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg:#0f1420; --card:#171f2e; --ink:#e7ebf3; --muted:#9aa4b8; --line:#3a4459; --brand:#7aa2ff; --ok:#4fd1a0; --todo:#f5b35c; --box:#1e2a44; }
+  }
+  :root[data-theme="dark"] { --bg:#0f1420; --card:#171f2e; --ink:#e7ebf3; --muted:#9aa4b8; --line:#3a4459; --brand:#7aa2ff; --ok:#4fd1a0; --todo:#f5b35c; --box:#1e2a44; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  header { padding:20px 24px 8px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:14px; margin:0; }
+  .crumbs { padding:8px 24px; font-size:14px; color:var(--muted); display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .crumbs button { background:none; border:none; color:var(--brand); cursor:pointer; font-size:14px; padding:2px 4px; }
+  .layout { display:grid; grid-template-columns: minmax(0,1fr) 340px; gap:16px; padding:8px 24px 32px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .stage { position:relative; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:24px; min-height:420px; }
+  .grid { position:relative; z-index:1; display:flex; flex-wrap:wrap; gap:18px 22px; justify-content:center; align-items:stretch; }
+  svg.edges { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:0; }
+  svg.edges line { stroke: var(--line); stroke-width:2; marker-end:url(#arrow); }
+  .node { width:200px; min-height:96px; background:var(--box); border:1px solid var(--line); border-radius:12px; padding:12px 14px; cursor:pointer; text-align:left; color:var(--ink); font:inherit; display:flex; flex-direction:column; gap:6px; transition: transform .12s, box-shadow .12s; }
+  .node:hover, .node:focus-visible { transform: translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,.12); outline: 2px solid var(--brand); outline-offset:2px; }
+  .node strong { font-size:15px; }
+  .node small { color:var(--muted); font-size:12.5px; line-height:1.35; }
+  .tag { align-self:flex-start; font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .tag.ok { color:var(--ok); border-color:var(--ok); }
+  .tag.todo { color:var(--todo); border-color:var(--todo); }
+  .node.external { background:var(--card); border-style:dashed; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; align-self:start; position:sticky; top:16px; }
+  .panel h2 { font-size:17px; margin:0 0 8px; }
+  .panel p { margin:0 0 10px; line-height:1.5; font-size:14.5px; }
+  .panel ul { margin:0 0 12px; padding-left:18px; font-size:14px; line-height:1.5; }
+  .panel .label { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-top:12px; display:block; }
+  .panel .enter { margin-top:12px; background:var(--brand); color:#fff; border:none; border-radius:8px; padding:9px 14px; cursor:pointer; font:inherit; font-size:14px; }
+  .legend { font-size:13px; color:var(--muted); padding:0 24px 8px; display:flex; gap:12px; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Arquitectura del sistema</h1>
+  <p class="sub">Pulsa una caja para ver qué hace. Los botones de «Entrar» muestran las capas de detalle.</p>
+</header>
+<nav class="crumbs" id="crumbs"></nav>
+<div class="legend">
+  <span><span class="tag ok">Migrado al código</span></span>
+  <span><span class="tag todo">Pendiente</span></span>
+  <span>Cajas discontinuas: servicios externos</span>
+</div>
+<div class="layout">
+  <section class="stage" id="stage">
+    <svg class="edges" id="edges" aria-hidden="true">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" style="color:var(--line)"></path>
+        </marker>
+      </defs>
+    </svg>
+    <div class="grid" id="grid"></div>
+  </section>
+  <aside class="panel" id="panel" aria-live="polite"></aside>
+</div>
+
+<script>
+const TREE = {
+  id: 'root', title: 'Sistema completo',
+  nodes: [
+    { id:'web', title:'Visitante web', desc:'Escribe en el chat de la web.', status:'ok', tag:'Entrada', detail:['El widget del chat envía cada mensaje a n8n, que lo reenvía al servicio.','La respuesta vuelve al visitante por el mismo camino.'] },
+    { id:'retell', title:'Llamadas (Retell)', desc:'Agente de voz para llamadas entrantes y salientes.', status:'ok', tag:'Entrada', detail:['Retell llama a n8n al empezar, terminar y analizar cada llamada.','Las herramientas del agente de voz también llaman a n8n.'] },
+    { id:'forms', title:'Formularios', desc:'Datos enviados desde la web (derivación y leads).', status:'ok', tag:'Entrada', detail:['El formulario de derivación llama al webhook de n8n.'] },
+    { id:'n8n', title:'n8n (puerta de entrada)', desc:'Recibe los webhooks y los reenvía al servicio nuevo.', status:'todo', tag:'Transición', detail:['Durante la migración sigue activo.','Cada webhook reenvía el mismo cuerpo al servicio y devuelve su respuesta.','Se puede quitar cuando todo esté probado.'], external:true },
+    { id:'app', title:'Servicio Next.js', desc:'Todo el código nuevo: chat, llamadas, herramientas y dashboard.', status:'ok', tag:'Código', children:'app' },
+    { id:'db', title:'PostgreSQL', desc:'Leads, historial del chat, transcripciones, vectores y ajustes.', status:'ok', tag:'Datos', detail:['eliasymunozabogados_leads: leads y su estado.','eliasymunozabogados_chat_histories: memoria del chat.','eliasmunozabogados_transcripciones: transcripciones de llamadas.','eliasymunozabogados_vectors: documentos del RAG.','dashboard_settings: ajustes del dashboard.'], external:true },
+    { id:'ext', title:'Servicios externos', desc:'OpenAI, Retell y el servidor de correo SMTP.', status:'ok', tag:'Externo', detail:['OpenAI: chat, embeddings y respuestas del RAG.','Retell: llamadas salientes y eventos del agente de voz.','SMTP: correos de nuevos leads y derivaciones.'], external:true }
+  ],
+  edges: [['web','n8n'],['retell','n8n'],['forms','n8n'],['n8n','app'],['app','db'],['app','ext']]
+};
+
+const LEVELS = {
+  app: {
+    id:'app', title:'Servicio Next.js',
+    nodes: [
+      { id:'dash', title:'Dashboard', desc:'Leads, conversaciones, tickets y transcripciones.', status:'ok', tag:'Interfaz', detail:['Acceso con DASHBOARD_PASSWORD y cookie de sesión.','Filtros y KPIs de leads por estado y modalidad.'] },
+      { id:'chat', title:'Chat web (/api/chat)', desc:'Agente de IA que atiende al visitante.', status:'ok', tag:'Código', children:'chat' },
+      { id:'calls', title:'Llamadas (/api/retell/*)', desc:'Eventos de Retell y llamadas entrantes.', status:'ok', tag:'Código', children:'calls' },
+      { id:'cron', title:'Reintentos (/api/cron/retry-calls)', desc:'Repite las llamadas a leads sin respuesta.', status:'ok', tag:'Código', detail:['Se ejecuta cada 10 minutos con Authorization: Bearer CRON_SECRET.','Solo llama a leads retry_pending sin llamar en los últimos 10 minutos y con menos de 2 intentos.'] },
+      { id:'derivar', title:'Derivación (/api/derivar)', desc:'Guarda el lead derivado y avisa al abogado.', status:'ok', tag:'Código', detail:['Guarda el lead como pending_contact con origen «Formulario - Derivado a interno».','Envía el correo a EMAIL_NOTIFY_TO y, si hay email, también al cliente.'] }
+    ],
+    edges: [['chat','calls']]
+  },
+  chat: {
+    id:'chat', title:'Chat web',
+    nodes: [
+      { id:'prompt', title:'Prompt del agente', desc:'Instrucciones: tono, etapas y reglas.', status:'ok', tag:'Configuración', detail:['Copiado del nodo AI Agent de n8n.','Incluye la fecha y hora actuales en Madrid.','Pendiente: el prompt menciona «guardar_lead», pero la herramienta se llama agendar_consulta.'] },
+      { id:'memory', title:'Memoria', desc:'Últimos 20 mensajes de la sesión.', status:'ok', tag:'Datos', detail:['Lee y guarda en eliasymunozabogados_chat_histories.','El formato de los mensajes sigue el de n8n. Hay que comprobarlo con una fila real.'] },
+      { id:'rag', title:'Herramienta sistema_rag', desc:'Busca en la base de conocimiento y responde.', status:'ok', tag:'Herramienta', children:'rag' },
+      { id:'agendar', title:'Herramienta agendar_consulta', desc:'Valida el teléfono, guarda el lead y avisa por correo.', status:'ok', tag:'Herramienta', children:'agendar' }
+    ],
+    edges: [['prompt','memory'],['memory','rag'],['rag','agendar']]
+  },
+  calls: {
+    id:'calls', title:'Llamadas',
+    nodes: [
+      { id:'callresult', title:'Eventos de llamada', desc:'Estado, resumen y transcripción de cada llamada.', status:'ok', tag:'Código', detail:['call_started: no hace nada.','call_ended: marca contacted, o retry_pending / no_answer si no contestó.','call_analyzed: guarda el resumen y, si no fue buzón, la transcripción.'] },
+      { id:'inbound', title:'Llamada entrante', desc:'Busca o crea el lead y devuelve las variables al agente.', status:'ok', tag:'Código', detail:['Origen del lead: «Llamada directa al teléfono del despacho».','Estado inicial: pending_contact.'] },
+      { id:'outbound', title:'Llamada saliente (formulario)', desc:'Llama al lead del formulario dentro del horario laboral.', status:'todo', tag:'Pendiente', detail:['Sigue en n8n (agente-outbond).','Falta leer cómo se conectan sus nodos antes de migrarlo.'] }
+    ],
+    edges: [['callresult','inbound'],['inbound','outbound']]
+  },
+  rag: {
+    id:'rag', title:'sistema_rag',
+    nodes: [
+      { id:'emb', title:'1. Embedding', desc:'Convierte la pregunta en un vector.', status:'ok', tag:'OpenAI', detail:['Modelo: OPENAI_EMBEDDING_MODEL (pendiente de confirmar).'] },
+      { id:'search', title:'2. Búsqueda', desc:'Top 10 documentos más parecidos.', status:'ok', tag:'PostgreSQL', detail:['Tabla eliasymunozabogados_vectors (pgvector).','Filtra por categoría si el agente la indica.'] },
+      { id:'answer', title:'3. Respuesta', desc:'Responde solo con el contexto recuperado.', status:'ok', tag:'OpenAI', detail:['Modelo: OPENAI_CHAT_MODEL.','Si no hay documentos, dice que no tiene información.'] }
+    ],
+    edges: [['emb','search'],['search','answer']]
+  },
+  agendar: {
+    id:'agendar', title:'agendar_consulta',
+    nodes: [
+      { id:'phone', title:'1. Validar teléfono', desc:'Acepta España (9 cifras, 6-9) e internacional con +.', status:'ok', tag:'Código', detail:['Si no es válido, el agente pide otro número antes de guardar.'] },
+      { id:'save', title:'2. Guardar lead', desc:'Inserta el lead con origen «Web chat».', status:'ok', tag:'PostgreSQL', detail:['Estado pending_contact, fecha = horario, modalidad = presencial o videoconferencia.'] },
+      { id:'mail', title:'3. Aviso por correo', desc:'Envía «NUEVO LEAD!!» al despacho.', status:'ok', tag:'SMTP', detail:['Destinatario: EMAIL_NOTIFY_TO (agenciabuffaloo@gmail.com).','Remitente: EMAIL_FROM.'] }
+    ],
+    edges: [['phone','save'],['save','mail']]
+  }
+};
+
+const crumbsEl = document.getElementById('crumbs');
+const gridEl = document.getElementById('grid');
+const edgesEl = document.getElementById('edges');
+const panelEl = document.getElementById('panel');
+let path = ['root'];
+
+function levelFor(id) { return id === 'root' ? TREE : LEVELS[id]; }
+
+function renderCrumbs() {
+  crumbsEl.innerHTML = '';
+  path.forEach((id, i) => {
+    const lvl = levelFor(id);
+    const title = lvl.title;
+    if (i < path.length - 1) {
+      const b = document.createElement('button');
+      b.textContent = title;
+      b.onclick = () => { path = path.slice(0, i + 1); render(); };
+      crumbsEl.appendChild(b);
+      crumbsEl.appendChild(document.createTextNode('›'));
+    } else {
+      const s = document.createElement('span');
+      s.textContent = title;
+      crumbsEl.appendChild(s);
+    }
+  });
+}
+
+function nodeCard(n, lvlId) {
+  const btn = document.createElement('button');
+  btn.className = 'node' + (n.external ? ' external' : '');
+  btn.dataset.id = n.id;
+  const tagClass = n.status === 'ok' ? 'ok' : 'todo';
+  const statusText = n.status === 'ok' ? 'Migrado al código' : 'Pendiente';
+  btn.innerHTML = `<span class="tag ${tagClass}">${statusText}</span><strong></strong><small></small>`;
+  btn.querySelector('strong').textContent = n.title;
+  btn.querySelector('small').textContent = n.desc;
+  btn.onclick = () => select(n, lvlId);
+  return btn;
+}
+
+function select(n, lvlId) {
+  panelEl.innerHTML = '';
+  const h = document.createElement('h2'); h.textContent = n.title; panelEl.appendChild(h);
+  const p = document.createElement('p'); p.textContent = n.desc; panelEl.appendChild(p);
+  if (n.detail && n.detail.length) {
+    const lbl = document.createElement('span'); lbl.className = 'label'; lbl.textContent = 'Qué hace'; panelEl.appendChild(lbl);
+    const ul = document.createElement('ul');
+    n.detail.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+    panelEl.appendChild(ul);
+  }
+  if (n.children) {
+    const btn = document.createElement('button');
+    btn.className = 'enter';
+    btn.textContent = 'Entrar en esta parte →';
+    btn.onclick = () => { path = [...path, n.children]; render(); };
+    panelEl.appendChild(btn);
+  }
+}
+
+function drawEdges(nodes, edges) {
+  // Limpia líneas anteriores, manteniendo la definición de la flecha.
+  [...edgesEl.querySelectorAll('line')].forEach(l => l.remove());
+  const stage = document.getElementById('stage').getBoundingClientRect();
+  edges.forEach(([a, b]) => {
+    const ea = gridEl.querySelector(`[data-id="${a}"]`);
+    const eb = gridEl.querySelector(`[data-id="${b}"]`);
+    if (!ea || !eb) return;
+    const ra = ea.getBoundingClientRect(), rb = eb.getBoundingClientRect();
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', ra.left + ra.width / 2 - stage.left);
+    line.setAttribute('y1', ra.top + ra.height / 2 - stage.top);
+    line.setAttribute('x2', rb.left + rb.width / 2 - stage.left);
+    line.setAttribute('y2', rb.top + rb.height / 2 - stage.top);
+    edgesEl.appendChild(line);
+  });
+}
+
+function render() {
+  renderCrumbs();
+  const current = levelFor(path[path.length - 1]);
+  gridEl.innerHTML = '';
+  current.nodes.forEach(n => gridEl.appendChild(nodeCard(n, current.id)));
+  panelEl.innerHTML = '<p>Pulsa una caja para ver qué hace.</p>';
+  requestAnimationFrame(() => drawEdges(current.nodes, current.edges));
+}
+
+window.addEventListener('resize', () => {
+  const current = levelFor(path[path.length - 1]);
+  drawEdges(current.nodes, current.edges);
+});
+
+render();
+</script>
+</body>
+</html>
