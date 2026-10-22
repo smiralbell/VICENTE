@@ -1,5 +1,5 @@
 import { query } from "./db";
-import { isAiAvailable } from "./availability";
+import { isSystemOn } from "./availability";
 import { auditCall, type TranscriptEntry } from "./callAudit";
 import { createPhoneCall } from "./retell";
 import { requireEnv } from "./env";
@@ -157,7 +157,7 @@ type RetryLead = { id: number; name: string | null; phone: string | null; email:
 
 // Reintentos: leads con retry_pending, sin llamar en los últimos 10 minutos y con menos de 2 intentos.
 export async function runRetryCalls(): Promise<{ total: number; created: number; failed: number }> {
-  if (!(await isAiAvailable())) {
+  if (!(await isSystemOn())) {
     return { total: 0, created: 0, failed: 0 };
   }
 

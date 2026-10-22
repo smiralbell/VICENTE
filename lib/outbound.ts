@@ -1,5 +1,4 @@
 import { query, getDashboardSettings } from "./db";
-import { isWorkingHours } from "./availability";
 import { requireEnv } from "./env";
 import { createPhoneCall } from "./retell";
 import { validatePhone } from "./phone";
@@ -59,16 +58,6 @@ export async function handleOutbound(payload: OutboundPayload): Promise<Outbound
     await upsertLead(sessionId, {
       name, phone: payload.phone ?? "", email,
       summary: `${summary} - El usuario completó el formulario en la web, pero el número de teléfono es inválido, por lo que no se pudo realizar la llamada automáticamente.`,
-      status: "pending_contact", source: "Formulario", withLastCall: false,
-    });
-    return "pending_contact";
-  }
-
-  // Modo "solo fuera laboral" dentro del horario laboral: no se llama ahora.
-  if (settings.offWorkOnly && isWorkingHours()) {
-    await upsertLead(sessionId, {
-      name, phone: phone.phone, email,
-      summary: `${summary} - El usuario completó el formulario dentro del horario laboral, por lo que no fue llamado automáticamente.`,
       status: "pending_contact", source: "Formulario", withLastCall: false,
     });
     return "pending_contact";
