@@ -53,7 +53,7 @@ export default function EstadosLeyenda() {
       </span>
       <div
         role="tooltip"
-        className="pointer-events-none invisible absolute right-0 top-8 z-50 max-h-[70vh] w-80 overflow-y-auto rounded-xl border border-paper-border bg-paper-card p-4 text-left text-xs shadow-lg group-hover:visible group-focus-within:visible"
+        className="pointer-events-none invisible absolute right-0 top-8 z-50 w-[min(44rem,90vw)] rounded-xl border border-paper-border bg-paper-card p-5 text-left text-xs shadow-lg group-hover:visible group-focus-within:visible"
       >
         <Section title="Origen (de dónde llega)" items={ORIGEN} />
         <Section title="Estado (lo que ha pasado)" items={ESTADO} />
