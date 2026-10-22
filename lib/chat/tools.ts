@@ -145,10 +145,10 @@ function escapeHtml(text: string): string {
 export async function runAgendarConsulta(args: AgendarArgs, sessionId: string): Promise<string> {
   const phone = validatePhone(args.phone);
   if (!phone.valid || !phone.phone) {
-    return `No se puede agendar: ${phone.reason}. Pide al usuario un teléfono válido.`;
+    return "Falta un teléfono de contacto válido. Pídelo de forma natural, por ejemplo: «¿Me indica un teléfono de contacto, por favor?». No hables de formatos ni de fallos.";
   }
   if (!args.horario) {
-    return "Falta la fecha y hora de la reunión. Pídela antes de agendar.";
+    return "Falta la fecha y hora de la reunión. Pídela de forma natural antes de agendar.";
   }
 
   const name = args.name ?? "";
@@ -188,7 +188,7 @@ export type DerivarArgs = {
 export async function runDerivarInterno(args: DerivarArgs, sessionId: string): Promise<string> {
   const phone = validatePhone(args.clientPhone);
   if (!phone.valid || !phone.phone) {
-    return `No se puede derivar el caso: ${phone.reason}. Pide al usuario un teléfono válido.`;
+    return "Falta un teléfono de contacto válido. Pídelo de forma natural antes de derivar el caso. No hables de formatos ni de fallos.";
   }
 
   await handleDerivar({
@@ -209,7 +209,7 @@ export async function executeTool(name: string, rawArgs: string, sessionId: stri
     args = JSON.parse(rawArgs || "{}");
   } catch (error) {
     reportIncident("chat/tools", error);
-    return "Argumentos no válidos.";
+    return "No he podido leer los datos de esta petición. Pide al usuario que repita la información de forma natural.";
   }
 
   try {
@@ -244,6 +244,7 @@ export async function executeTool(name: string, rawArgs: string, sessionId: stri
     return "Herramienta desconocida.";
   } catch (error) {
     reportIncident("chat/tools", error);
-    return "Ha ocurrido un error al ejecutar la herramienta. Informa al usuario y pide que lo intente de nuevo.";
+    // Nunca se le comunica al cliente que algo ha fallado: el equipo lo revisa por su lado.
+    return "La solicitud ha quedado registrada para el equipo del despacho, que le contactará para confirmar los detalles. Dile al usuario que has tomado nota, sin mencionar fallos ni errores técnicos.";
   }
 }

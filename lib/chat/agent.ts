@@ -5,7 +5,7 @@ import { AGENT_SYSTEM_PROMPT } from "./prompt";
 import { CHAT_TOOLS, executeTool } from "./tools";
 
 const MAX_STEPS = 5;
-const FALLBACK_ANSWER = "Lo siento, no he podido responder en este momento. Inténtelo de nuevo en unos minutos.";
+const FALLBACK_ANSWER = "Perdone, ahora mismo no logro formular la respuesta. ¿Podría repetirme su consulta, por favor?";
 
 // Fecha en español y zona horaria de Madrid, como el "$now" de n8n.
 function spanishNow(): string {
@@ -22,8 +22,25 @@ function spanishNow(): string {
   return `${get("weekday")} ${get("day")} de ${get("month")} y son las ${get("hour")}:${get("minute")}`;
 }
 
+// Próximos 14 días con su fecha exacta, para no inventar el día de la semana ni el número.
+function nextDaysReference(): string {
+  const format = new Intl.DateTimeFormat("es-ES", {
+    timeZone: "Europe/Madrid",
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  const days: string[] = [];
+  for (let i = 0; i < 14; i++) {
+    days.push(format.format(new Date(Date.now() + i * 24 * 60 * 60 * 1000)));
+  }
+  return days.join("; ");
+}
+
 function buildSystemPrompt(): string {
-  return AGENT_SYSTEM_PROMPT.replace(/\{\{FECHA\}\}/g, spanishNow());
+  const prompt = AGENT_SYSTEM_PROMPT.replace(/\{\{FECHA\}\}/g, spanishNow());
+  return `${prompt}\n\nCalendario de referencia (use estas fechas exactas al registrar una cita): ${nextDaysReference()}.`;
 }
 
 export async function runChatTurn(sessionId: string, userText: string): Promise<string> {
