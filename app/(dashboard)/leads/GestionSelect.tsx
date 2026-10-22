@@ -33,7 +33,7 @@ export default function GestionSelect({ leadId, value, compact = false }: Props 
   }
 
   return (
-    <div title={state.description}>
+    <div title={state.description} className="min-w-0 max-w-full">
       <Dropdown
         label="Estado de gestión"
         value={current}

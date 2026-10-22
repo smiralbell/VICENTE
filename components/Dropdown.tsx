@@ -47,7 +47,7 @@ export default function Dropdown({ label, value, options, onChange, disabled, cl
   }, [open]);
 
   return (
-    <div ref={ref} className={`relative inline-block ${className}`} onClick={(e) => e.stopPropagation()}>
+    <div ref={ref} className={`relative inline-block max-w-full ${className}`} onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
         aria-label={label}
@@ -56,7 +56,7 @@ export default function Dropdown({ label, value, options, onChange, disabled, cl
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
         className={`flex items-center justify-between gap-2 rounded-xl border border-paper-border bg-paper-card text-left text-sm text-paper-ink shadow-sm transition-colors hover:border-brand/40 focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60 ${
-          compact ? "h-8 px-2 text-xs" : "h-11 min-w-[10rem] px-3.5"
+          compact ? "h-8 w-full min-w-0 px-2 text-xs" : "h-11 min-w-[10rem] px-3.5"
         }`}
       >
         {current?.className ? <Chip label={current.label} className={current.className} /> : <span className="truncate">{current?.label}</span>}

@@ -297,7 +297,7 @@ export default function LeadsTable({
                   );
                 })()}
               </td>
-              <td className="py-2.5 px-2 text-xs lg:py-3 lg:px-3 lg:text-sm">
+              <td className="min-w-0 overflow-hidden py-2.5 px-2 text-xs lg:py-3 lg:px-3 lg:text-sm">
                 <GestionSelect leadId={lead.id} value={lead.gestion_estado} compact />
               </td>
               <td className="whitespace-nowrap py-2.5 px-2 text-[11px] text-paper-muted lg:py-3 lg:px-3 lg:text-xs">
