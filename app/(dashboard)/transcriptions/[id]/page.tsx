@@ -15,6 +15,7 @@ type Turn = {
 function formatDate(fecha: Date | null) {
   if (!fecha) return "Sin fecha";
   return new Date(fecha).toLocaleDateString("es-ES", {
+    timeZone: "Europe/Madrid",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

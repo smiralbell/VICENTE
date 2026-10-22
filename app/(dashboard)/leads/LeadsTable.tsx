@@ -8,6 +8,7 @@ import type { LeadSortField } from "@/lib/db";
 import type { LeadWithNavigation } from "@/lib/leadNavigation";
 import { getLeadNavigationPath } from "@/lib/leadNavigation";
 import { getStatusPill, type LeadFilters } from "@/lib/leadFilters";
+import { formatMadrid } from "@/lib/dateFormat";
 
 function parseDate(value: Date | string | null | undefined): Date | null {
   if (!value) return null;
@@ -39,13 +40,7 @@ function parseDate(value: Date | string | null | undefined): Date | null {
 
 function formatDate(d: Date | string | null | undefined) {
   const date = parseDate(d);
-  if (!date) return "—";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
+  return formatMadrid(date);
 }
 
 const COLUMNS: { key: LeadSortField | null; label: string }[] = [

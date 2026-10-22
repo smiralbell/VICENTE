@@ -1,3 +1,5 @@
+import { formatMadrid } from "@/lib/dateFormat";
+
 export type Priority = "low" | "medium" | "high" | "critical";
 export type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 export type StatusFilter = "all" | TicketStatus;
@@ -82,15 +84,7 @@ export function getPriorityClass(priority: string) {
 }
 
 export function formatDate(value: string | Date | null | undefined) {
-  if (!value) return "—";
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
+  return formatMadrid(value);
 }
 
 export const inputClass =

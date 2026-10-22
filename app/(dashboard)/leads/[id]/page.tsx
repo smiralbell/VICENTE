@@ -40,6 +40,7 @@ function formatDate(d: Date | string | null | undefined) {
   const parsed = parseDate(d);
   if (!parsed) return "—";
   return parsed.toLocaleDateString("es-ES", {
+    timeZone: "Europe/Madrid",
     day: "2-digit",
     month: "long",
     year: "numeric",
