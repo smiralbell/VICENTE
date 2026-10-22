@@ -17,6 +17,7 @@ type SessionWithLeadAndPreview = {
   message_count: number;
   last_message_at: Date | null;
   lead: LeadLite | null;
+  datos: { name: string; phone: string; email: string } | null;
   last_message_preview: string | null;
 };
 
@@ -75,9 +76,13 @@ export default function ConversationsSidebar() {
             {visible.map((s) => {
               const href = `/conversations/${encodeURIComponent(s.session_id)}`;
               const isActive = pathname === href;
-              const displayName = s.lead?.name || s.session_id.slice(0, 16) + "…";
-              const sub = s.lead?.email || s.lead?.phone || "";
-              const initial = getInitial(s.lead?.name || s.session_id.slice(0, 2));
+              // Preferencia: nombre; si no hay, teléfono. El teléfono o el correo van debajo.
+              const name = s.lead?.name || s.datos?.name || "";
+              const phone = s.lead?.phone || s.datos?.phone || (s.session_id.startsWith("+") ? s.session_id : "");
+              const email = s.lead?.email || s.datos?.email || "";
+              const displayName = name || phone || s.session_id.slice(0, 16) + "…";
+              const sub = [name ? phone : "", email].filter(Boolean).join(" · ");
+              const initial = getInitial(displayName);
               return (
                 <li key={s.session_id}>
                   <Link

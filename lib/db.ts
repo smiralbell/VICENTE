@@ -336,6 +336,8 @@ export async function getRecentLeadsCount(days: number): Promise<number> {
 
 export type SessionWithLeadAndPreview = SessionSummary & {
   lead: Lead | null;
+  // Datos que el cliente dio en el chat (antes de que exista lead).
+  datos: { name: string; phone: string; email: string } | null;
   last_message_preview: string | null;
 };
 
@@ -352,6 +354,12 @@ export async function getConversationSessionsWithLeadAndPreview(
     sessionIds
   );
   const leadBySession = new Map(leadsRows.map((l) => [l.session_id!, l]));
+
+  const { rows: datosRows } = await query<{ session_id: string; name: string; phone: string; email: string }>(
+    `SELECT session_id, name, phone, email FROM eliasymunozabogados_chat_datos WHERE session_id IN (${placeholders})`,
+    sessionIds
+  );
+  const datosBySession = new Map(datosRows.map((d) => [d.session_id, { name: d.name, phone: d.phone, email: d.email }]));
 
   const { rows: lastRows } = await query<{
     session_id: string;
@@ -379,6 +387,7 @@ export async function getConversationSessionsWithLeadAndPreview(
   return sessions.map((s) => ({
     ...s,
     lead: leadBySession.get(s.session_id) ?? null,
+    datos: datosBySession.get(s.session_id) ?? null,
     last_message_preview: previewBySession.get(s.session_id) ?? null,
   }));
 }
