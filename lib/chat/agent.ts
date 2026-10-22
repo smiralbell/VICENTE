@@ -3,7 +3,7 @@ import { chatCompletion, type ChatMessage } from "../openai";
 import { loadHistory, saveTurn } from "./memory";
 import { AGENT_SYSTEM_PROMPT } from "./prompt";
 import { CHAT_TOOLS, executeTool } from "./tools";
-import { describeChatDatos, getChatDatos } from "./datos";
+import { describeChatDatos, extractDatos, getChatDatos, saveChatDatos } from "./datos";
 
 const MAX_STEPS = 5;
 const FALLBACK_ANSWER = "Perdone, ahora mismo no logro formular la respuesta. ¿Podría repetirme su consulta, por favor?";
@@ -46,6 +46,10 @@ function buildSystemPrompt(datosCliente: string): string {
 
 export async function runChatTurn(sessionId: string, userText: string): Promise<string> {
   const history = await loadHistory(sessionId);
+  // Lo que el cliente acaba de dar se guarda antes de contestar, para que el asistente ya lo tenga.
+  const lastAssistant = [...history].reverse().find((m) => m.role === "assistant")?.content ?? "";
+  const found = extractDatos(userText, typeof lastAssistant === "string" ? lastAssistant : "");
+  if (Object.values(found).some(Boolean)) await saveChatDatos(sessionId, found);
   const datosCliente = describeChatDatos(await getChatDatos(sessionId));
   const messages: ChatMessage[] = [
     { role: "system", content: buildSystemPrompt(datosCliente) },
