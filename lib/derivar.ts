@@ -1,6 +1,7 @@
 import { query } from "./db";
 import { requireEnv } from "./env";
 import { sendMail } from "./email";
+import { findLawyer, isSendableLawyerEmail, type Lawyer } from "./lawyers";
 
 const LEADS_TABLE = "eliasymunozabogados_leads";
 
@@ -21,9 +22,24 @@ const LABEL_CELL = 'style="padding:12px; background:#f7f7fb; border:1px solid #e
 const VALUE_CELL = 'style="padding:12px; border:1px solid #e5e7eb;"';
 
 // Mismo diseño que el correo de nuevo lead. Los campos vacíos se muestran como "No indicado".
-function renderDerivarEmail(payload: DerivarPayload): string {
+function renderLawyerBlock(lawyer: Lawyer): string {
+  const value = (text: string) => (text ? escapeHtml(text) : "—");
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; margin-bottom:24px;">
+                <tr><td colspan="2" style="padding:12px; background:#070b2a; color:#ffffff; font-weight:bold;">Datos de contacto del abogado</td></tr>
+                <tr><td ${LABEL_CELL}>Teléfono directo</td><td ${VALUE_CELL}>${value(lawyer.phone)}</td></tr>
+                <tr><td ${LABEL_CELL}>Móvil</td><td ${VALUE_CELL}>${value(lawyer.mobile)}</td></tr>
+                <tr><td ${LABEL_CELL}>Extensión</td><td ${VALUE_CELL}>${value(lawyer.extension)}</td></tr>
+                <tr><td ${LABEL_CELL}>Correo</td><td ${VALUE_CELL}>${value(lawyer.email)}</td></tr>
+              </table>`;
+}
+
+// Mismo diseño que el correo de nuevo lead. Los campos vacíos se muestran como "No indicado".
+function renderDerivarEmail(payload: DerivarPayload, lawyer: Lawyer | null): string {
   const value = (text?: string) => (text && text.trim() ? escapeHtml(text.trim()) : "No indicado");
   const summary = value(payload.summaryCase).replace(/\n/g, "<br/>");
+  const lawyerBlock = lawyer
+    ? renderLawyerBlock(lawyer)
+    : `<p style="margin:0 0 24px; color:#b45309;">El abogado solicitado (${value(payload.lawyerName)}) no está en el directorio: revisar a mano.</p>`;
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -52,6 +68,7 @@ function renderDerivarEmail(payload: DerivarPayload): string {
                 <tr><td ${LABEL_CELL}>Teléfono</td><td ${VALUE_CELL}>${value(payload.clientPhone)}</td></tr>
                 <tr><td ${LABEL_CELL}>Email</td><td ${VALUE_CELL}>${value(payload.clientEmail)}</td></tr>
               </table>
+              ${lawyerBlock}
               <div style="background:#f7f7fb; border-left:4px solid #070b2a; padding:18px 20px; border-radius:8px;">
                 <p style="margin:0 0 8px; font-weight:bold; color:#070b2a;">Resumen del caso:</p>
                 <p style="margin:0; line-height:1.6; color:#374151;">${summary}</p>
@@ -82,12 +99,16 @@ export async function handleDerivar(payload: DerivarPayload): Promise<void> {
     [sessionId, payload.clientName ?? "", payload.clientPhone ?? "", payload.clientEmail ?? "", payload.summaryCase ?? ""]
   );
 
+  const lawyer = findLawyer(payload.lawyerName);
   const recipients = [requireEnv("EMAIL_NOTIFY_TO")];
+  if (lawyer && isSendableLawyerEmail(lawyer.email) && !recipients.includes(lawyer.email)) {
+    recipients.push(lawyer.email);
+  }
   if (payload.clientEmail) recipients.push(payload.clientEmail);
 
   await sendMail({
     to: recipients.join(", "),
     subject: "Nuevo caso derivado",
-    html: renderDerivarEmail(payload),
+    html: renderDerivarEmail(payload, lawyer),
   });
 }
