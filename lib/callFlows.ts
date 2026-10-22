@@ -8,6 +8,15 @@ import { requireEnv } from "./env";
 const LEADS_TABLE = "eliasymunozabogados_leads";
 const TRANSCRIPTIONS_TABLE = "eliasmunozabogados_transcripciones";
 const INBOUND_SOURCE = "Llamada directa al teléfono del despacho";
+// Motivos por los que la persona no contestó (buzón, ocupado, fallo de línea...). No cuentan como "Contestó".
+const NO_ANSWER_REASONS = new Set([
+  "dial_no_answer",
+  "dial_busy",
+  "dial_failed",
+  "voicemail_reached",
+  "invalid_destination",
+  "telephony_provider_unavailable",
+]);
 
 export type RetellCall = {
   call_id?: string;
@@ -85,7 +94,7 @@ export async function handleRetellCallEvent(payload: RetellWebhookPayload): Prom
   if (!phone) return;
 
   if (payload.event === "call_ended") {
-    if (call.disconnection_reason === "dial_no_answer") {
+    if (NO_ANSWER_REASONS.has(call.disconnection_reason ?? "")) {
       const attempts = await getCallAttempts(phone);
       await markNoAnswer(phone, attempts);
     } else {
@@ -177,6 +186,11 @@ export async function runRetryCalls(): Promise<{ total: number; created: number;
   for (const lead of rows) {
     if (!lead.phone) continue;
     try {
+      // Se cuenta el intento antes de llamar: si el evento final no llega, no se vuelve a llamar sin fin.
+      await query(
+        `UPDATE ${LEADS_TABLE} SET last_call_at = NOW(), call_attempts = call_attempts + 1 WHERE id = $1`,
+        [lead.id]
+      );
       await createPhoneCall({
         fromNumber,
         toNumber: lead.phone,

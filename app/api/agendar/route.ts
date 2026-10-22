@@ -61,8 +61,8 @@ export async function POST(request: Request) {
         phone,
         email: body.email ?? "",
         summaryCase: body.summaryCase ?? "",
-        horario: body.horario ?? body.consultation_day_time ?? "",
-        modalidad: body.modalidad ?? "",
+        horario: body.horario || body.consultation_day_time || "",
+        modalidad: body.modalidad || "",
         source: body.source || "Llamada de voz",
       },
       sessionId

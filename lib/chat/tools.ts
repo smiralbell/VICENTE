@@ -150,6 +150,10 @@ export async function runAgendarConsulta(args: AgendarArgs, sessionId: string): 
   if (!args.horario) {
     return "Falta la fecha y hora de la reunión. Pídela de forma natural antes de agendar.";
   }
+  const when = parseMadridLocal(args.horario);
+  if (when && when.getTime() < Date.now()) {
+    return "Esa fecha ya ha pasado. Pide al usuario otra fecha futura de forma natural, sin mencionar errores.";
+  }
 
   const name = args.name ?? "";
   const email = args.email ?? "";
