@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { getLeadsPaginated, getLeadsKpis, isLeadSortField, findTranscriptionIdForLead, findSessionIdForLead } from "@/lib/db";
-import { isFormularioSource, isWebChatSource } from "@/lib/leadNavigation";
+import { isFormularioSource, isPhoneSource, isWebChatSource } from "@/lib/leadNavigation";
 import { isDateFilter, isGestionFilter, isLeadStatusFilter, isModalidadFilter, type LeadFilters } from "@/lib/leadFilters";
 import LeadsKpis from "./LeadsKpis";
 import LeadsTable from "./LeadsTable";
@@ -54,7 +54,7 @@ export default async function LeadsPage({ searchParams }: Props) {
 
   const leadsWithNavigation = await Promise.all(
     leads.map(async (lead) => {
-      if (isFormularioSource(lead.source)) {
+      if (isFormularioSource(lead.source) || isPhoneSource(lead.source)) {
         const transcriptionId = await findTranscriptionIdForLead(lead);
         return { ...lead, transcriptionId };
       }

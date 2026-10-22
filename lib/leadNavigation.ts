@@ -10,6 +10,11 @@ export function isFormularioSource(source: string | null): boolean {
   return source.trim().toLowerCase().includes("formulario");
 }
 
+// Leads que llegan por llamada (entrante o agendados durante la llamada): su sitio es la transcripción o la ficha.
+export function isPhoneSource(source: string | null): boolean {
+  return /llamada|\{\{/i.test(source ?? "");
+}
+
 export function isWebChatSource(source: string | null): boolean {
   if (!source) return false;
   const normalized = source.trim().toLowerCase();
@@ -23,6 +28,11 @@ export function getLeadNavigationPath(lead: LeadWithNavigation): string {
     }
     const q = lead.phone?.trim() || lead.email?.trim() || lead.name?.trim();
     if (q) return `/transcriptions?q=${encodeURIComponent(q)}`;
+    return `/leads/${lead.id}`;
+  }
+
+  if (isPhoneSource(lead.source)) {
+    if (lead.transcriptionId) return `/transcriptions/${lead.transcriptionId}`;
     return `/leads/${lead.id}`;
   }
 
