@@ -1,3 +1,4 @@
+import { reportIncident } from "./incidents";
 import { query, getDashboardSettings } from "./db";
 import { requireEnv } from "./env";
 import { createPhoneCall } from "./retell";
@@ -77,7 +78,8 @@ export async function handleOutbound(payload: OutboundPayload): Promise<Outbound
       dynamicVariables: { name, phone: phone.phone, email, summaryCase: summary, source: "Formulario" },
     });
     return "called";
-  } catch {
+  } catch (error) {
+    reportIncident("outbound", error);
     // Si Retell falla, el lead queda en retry_pending y lo recoge el cron de reintentos.
     return "retry_pending";
   }

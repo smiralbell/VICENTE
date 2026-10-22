@@ -1,3 +1,4 @@
+import { reportIncident } from "@/lib/incidents";
 import { NextResponse } from "next/server";
 import {
   createTicket,
@@ -11,7 +12,8 @@ export async function GET() {
   try {
     const tickets = await getTickets();
     return NextResponse.json(tickets);
-  } catch {
+  } catch (error) {
+    reportIncident("api/tickets", error);
     return NextResponse.json({ error: "No se pudieron cargar los tickets" }, { status: 500 });
   }
 }
@@ -38,7 +40,8 @@ export async function POST(request: Request) {
 
   try {
     body = await request.json();
-  } catch {
+  } catch (error) {
+    reportIncident("api/tickets", error);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -73,7 +76,8 @@ export async function POST(request: Request) {
       reporter_email: body.reporter?.email?.trim() || null,
       fields,
     });
-  } catch {
+  } catch (error) {
+    reportIncident("api/tickets", error);
     return NextResponse.json(
       { error: "No se pudo guardar el ticket en la base de datos" },
       { status: 500 }
@@ -135,7 +139,8 @@ export async function POST(request: Request) {
       },
       { status: res.status }
     );
-  } catch {
+  } catch (error) {
+    reportIncident("api/tickets", error);
     return NextResponse.json(
       {
         error: "No se ha podido conectar con el sistema de tickets",

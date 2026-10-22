@@ -1,3 +1,4 @@
+import { reportIncident } from "./lib/incidents";
 // Cron de reintentos: se ejecuta dentro del propio servidor cada 10 minutos.
 // Solo en producción y en el entorno de Node, para no lanzar llamadas en desarrollo.
 export async function register() {
@@ -11,7 +12,8 @@ export async function register() {
     running = true;
     try {
       await runRetryCalls();
-    } catch {
+    } catch (error) {
+      reportIncident("instrumentation/cron", error);
       // Un fallo se reintenta en la siguiente vuelta.
     } finally {
       running = false;

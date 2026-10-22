@@ -57,6 +57,7 @@ export const config = {
     "/api/webhook-offwork",
     "/api/webhook-system",
     "/api/leads/:path*",
+    "/api/incidents",
     "/login",
   ],
 };

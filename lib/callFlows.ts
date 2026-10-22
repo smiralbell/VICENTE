@@ -1,3 +1,4 @@
+import { reportIncident } from "./incidents";
 import { query } from "./db";
 import { isSystemOn } from "./availability";
 import { auditCall, type TranscriptEntry } from "./callAudit";
@@ -111,7 +112,8 @@ export async function handleRetellCallEvent(payload: RetellWebhookPayload): Prom
       const toolNames = Array.from(new Set(entries.filter((e) => e.role === "tool_call_invocation").map((e) => e.name ?? "").filter(Boolean)));
       try {
         await auditCall({ callId: call.call_id ?? "", phone, agentId: call.agent_id ?? "", transcript: entries, toolNames });
-      } catch {
+      } catch (error) {
+        reportIncident("callFlows", error);
         // Un fallo en la auditoría no debe afectar al resto del evento.
       }
     }
@@ -188,7 +190,8 @@ export async function runRetryCalls(): Promise<{ total: number; created: number;
         },
       });
       created++;
-    } catch {
+    } catch (error) {
+      reportIncident("callFlows", error);
       failed++;
     }
   }

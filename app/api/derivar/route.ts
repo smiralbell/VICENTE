@@ -1,3 +1,4 @@
+import { reportIncident } from "@/lib/incidents";
 import { NextResponse } from "next/server";
 import { handleDerivar, type DerivarPayload } from "@/lib/derivar";
 import { checkWebhookToken } from "@/lib/webhookAuth";
@@ -11,14 +12,16 @@ export async function POST(request: Request) {
   let payload: DerivarPayload;
   try {
     payload = await request.json();
-  } catch {
+  } catch (error) {
+    reportIncident("api/derivar", error);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   try {
     await handleDerivar(payload);
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (error) {
+    reportIncident("api/derivar", error);
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 }

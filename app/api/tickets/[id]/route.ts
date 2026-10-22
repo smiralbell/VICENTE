@@ -1,3 +1,4 @@
+import { reportIncident } from "@/lib/incidents";
 import { NextResponse } from "next/server";
 import { deleteTicketInBuffalo } from "@/lib/buffaloWebhook";
 import { deleteTicket, getTicketById, getTicketWithUpdates } from "@/lib/tickets";
@@ -24,7 +25,8 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Ticket no encontrado" }, { status: 404 });
     }
     return NextResponse.json(result);
-  } catch {
+  } catch (error) {
+    reportIncident("api/tickets/[id]", error);
     return NextResponse.json({ error: "No se pudo cargar el ticket" }, { status: 500 });
   }
 }
@@ -68,7 +70,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
       buffalo_deleted: buffaloResult.ok,
       buffalo_not_found: buffaloNotFound,
     });
-  } catch {
+  } catch (error) {
+    reportIncident("api/tickets/[id]", error);
     return NextResponse.json({ error: "No se pudo eliminar el ticket" }, { status: 500 });
   }
 }

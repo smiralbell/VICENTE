@@ -1,3 +1,4 @@
+import { reportIncident } from "@/lib/incidents";
 import { NextResponse } from "next/server";
 import { handleOutbound, type OutboundPayload } from "@/lib/outbound";
 import { checkWebhookToken } from "@/lib/webhookAuth";
@@ -12,7 +13,8 @@ export async function POST(request: Request) {
   let payload: OutboundPayload & { message?: string };
   try {
     payload = await request.json();
-  } catch {
+  } catch (error) {
+    reportIncident("api/outbound", error);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -24,7 +26,8 @@ export async function POST(request: Request) {
       summaryCase: payload.summaryCase ?? payload.message,
     });
     return NextResponse.json({ ok: true, status });
-  } catch {
+  } catch (error) {
+    reportIncident("api/outbound", error);
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 }

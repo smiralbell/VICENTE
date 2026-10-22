@@ -1,3 +1,4 @@
+import { reportIncident } from "./incidents";
 import { Pool } from "pg";
 import { datesMatch, pickBestByDate } from "./parseDate";
 import type { LeadFilters } from "./leadFilters";
@@ -543,7 +544,8 @@ export async function getDashboardSettings(): Promise<DashboardSettings> {
       systemPublished: alwaysDisabled !== "true",
       updatedAt: null,
     };
-  } catch {
+  } catch (error) {
+    reportIncident("db/ajustes", error);
     return { offWorkOnly: false, systemPublished: true, updatedAt: null };
   }
 }

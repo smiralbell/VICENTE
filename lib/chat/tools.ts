@@ -1,3 +1,4 @@
+import { reportIncident } from "../incidents";
 import { query } from "../db";
 import { requireEnv } from "../env";
 import { sendMail } from "../email";
@@ -205,7 +206,8 @@ export async function executeTool(name: string, rawArgs: string, sessionId: stri
   let args: Record<string, string | undefined>;
   try {
     args = JSON.parse(rawArgs || "{}");
-  } catch {
+  } catch (error) {
+    reportIncident("chat/tools", error);
     return "Argumentos no válidos.";
   }
 
@@ -239,7 +241,8 @@ export async function executeTool(name: string, rawArgs: string, sessionId: stri
       );
     }
     return "Herramienta desconocida.";
-  } catch {
+  } catch (error) {
+    reportIncident("chat/tools", error);
     return "Ha ocurrido un error al ejecutar la herramienta. Informa al usuario y pide que lo intente de nuevo.";
   }
 }

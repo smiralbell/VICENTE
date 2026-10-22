@@ -1,3 +1,4 @@
+import { reportIncident } from "@/lib/incidents";
 import { NextResponse } from "next/server";
 import { runChatTurn } from "@/lib/chat/agent";
 import { checkWebhookToken } from "@/lib/webhookAuth";
@@ -18,7 +19,8 @@ export async function POST(request: Request) {
   let payload: ChatPayload;
   try {
     payload = await request.json();
-  } catch {
+  } catch (error) {
+    reportIncident("api/chat", error);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -35,7 +37,8 @@ export async function POST(request: Request) {
   try {
     const output = await runChatTurn(sessionId, text);
     return NextResponse.json({ output });
-  } catch {
+  } catch (error) {
+    reportIncident("api/chat", error);
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 }

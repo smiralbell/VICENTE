@@ -1,3 +1,4 @@
+import { reportIncident } from "@/lib/incidents";
 import { NextResponse } from "next/server";
 import { runRetryCalls } from "@/lib/callFlows";
 import { checkCronSecret } from "@/lib/webhookAuth";
@@ -13,7 +14,8 @@ export async function POST(request: Request) {
   try {
     const result = await runRetryCalls();
     return NextResponse.json({ ok: true, ...result });
-  } catch {
+  } catch (error) {
+    reportIncident("cron/retry-calls", error);
     return NextResponse.json({ error: "Retry run failed" }, { status: 500 });
   }
 }

@@ -1,3 +1,4 @@
+import { reportIncident } from "@/lib/incidents";
 import { NextResponse } from "next/server";
 import { setLeadGestion } from "@/lib/db";
 import { isGestionState } from "@/lib/leadFilters";
@@ -15,7 +16,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   let body: { gestion?: string };
   try {
     body = await request.json();
-  } catch {
+  } catch (error) {
+    reportIncident("api/leads/gestion", error);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -26,7 +28,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     await setLeadGestion(leadId, body.gestion);
     return NextResponse.json({ ok: true, gestion: body.gestion });
-  } catch {
+  } catch (error) {
+    reportIncident("api/leads/gestion", error);
     return NextResponse.json({ error: "No se pudo guardar" }, { status: 500 });
   }
 }

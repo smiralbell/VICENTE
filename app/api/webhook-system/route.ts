@@ -1,3 +1,4 @@
+import { reportIncident } from "@/lib/incidents";
 import { NextResponse } from "next/server";
 import { setSystemPublishedSetting } from "@/lib/db";
 
@@ -6,7 +7,8 @@ export async function POST(request: Request) {
   let body: { systemPublished?: boolean };
   try {
     body = await request.json();
-  } catch {
+  } catch (error) {
+    reportIncident("api/webhook-system", error);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -22,7 +24,8 @@ export async function POST(request: Request) {
   try {
     const settings = await setSystemPublishedSetting(body.systemPublished);
     return NextResponse.json({ ok: true, action, ...settings });
-  } catch {
+  } catch (error) {
+    reportIncident("api/webhook-system", error);
     return NextResponse.json({ error: "No se pudo guardar el ajuste" }, { status: 500 });
   }
 }

@@ -1,3 +1,4 @@
+import { reportIncident } from "@/lib/incidents";
 import { NextResponse } from "next/server";
 import { runAgendarConsulta } from "@/lib/chat/tools";
 import { checkWebhookToken } from "@/lib/webhookAuth";
@@ -26,7 +27,8 @@ export async function POST(request: Request) {
   let body: AgendarBody;
   try {
     body = await request.json();
-  } catch {
+  } catch (error) {
+    reportIncident("api/agendar", error);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -48,7 +50,8 @@ export async function POST(request: Request) {
       sessionId
     );
     return NextResponse.json({ result });
-  } catch {
+  } catch (error) {
+    reportIncident("api/agendar", error);
     return NextResponse.json({ result: "Ha ocurrido un error al agendar la consulta. Pide al usuario que lo intente de nuevo." }, { status: 500 });
   }
 }

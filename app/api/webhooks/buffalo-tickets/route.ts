@@ -1,3 +1,4 @@
+import { reportIncident } from "@/lib/incidents";
 import { NextResponse } from "next/server";
 import {
   applyBuffaloTicketUpdate,
@@ -42,7 +43,8 @@ export async function POST(request: Request) {
 
   try {
     body = await request.json();
-  } catch {
+  } catch (error) {
+    reportIncident("webhooks/buffalo-tickets", error);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
