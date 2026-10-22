@@ -47,6 +47,11 @@ export default function Sidebar() {
         }}
       >
         <div className={`flex h-14 shrink-0 items-center border-b border-white/10 px-3 ${collapsed && !isMobile ? "justify-center" : "justify-between"}`}>
+          {collapsed && !isMobile && (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/15 font-serif text-sm font-semibold text-white">
+              E&M
+            </div>
+          )}
           {(!collapsed || isMobile) && (
             <div className="flex items-center gap-2 overflow-hidden">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/15 font-serif text-sm font-semibold text-white">

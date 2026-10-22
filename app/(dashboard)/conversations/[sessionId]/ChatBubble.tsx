@@ -70,7 +70,7 @@ export default function ChatBubble({ id, message }: ChatBubbleProps) {
 
   return (
     <div
-      className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}
+      className={`flex w-full ${isUser ? "justify-start" : "justify-end"}`}
       data-role={role}
     >
       <div

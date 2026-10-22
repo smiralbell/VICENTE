@@ -104,7 +104,7 @@ export default async function TranscriptionDetailPage({ params }: Props) {
                   <div
                     key={index}
                     className={`flex w-full ${
-                      isUser ? "justify-end" : "justify-start"
+                      isUser ? "justify-start" : "justify-end"
                     }`}
                   >
                     <div
