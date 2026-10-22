@@ -106,11 +106,20 @@ async function setSummary(phone: string, summary: string): Promise<void> {
   await query(`UPDATE ${LEADS_TABLE} SET summary = $2 WHERE session_id = $1`, [phone, summary]);
 }
 
-async function insertTranscript(call: RetellCall, phone: string): Promise<void> {
+// Texto de la llamada: el campo transcript, o si viene vacío, las intervenciones de agente y cliente.
+function transcriptText(call: RetellCall): string {
+  if (call.transcript?.trim()) return call.transcript.trim();
+  return (call.transcript_with_tool_calls ?? [])
+    .filter((e) => (e.role === "agent" || e.role === "user") && e.content?.trim())
+    .map((e) => `${e.role === "agent" ? "Agente" : "Cliente"}: ${e.content!.trim()}`)
+    .join("\n");
+}
+
+async function insertTranscript(call: RetellCall, phone: string, text: string): Promise<void> {
   await query(
     `INSERT INTO ${TRANSCRIPTIONS_TABLE} (transcription, name, phone, mail, fecha) VALUES ($1, $2, $3, $4, NOW())`,
     [
-      call.transcript ?? null,
+      text,
       call.retell_llm_dynamic_variables?.name ?? null,
       phone,
       call.retell_llm_dynamic_variables?.email ?? null,
@@ -142,8 +151,12 @@ export async function handleRetellCallEvent(payload: RetellWebhookPayload): Prom
 
     const voicemail = call.call_analysis?.in_voicemail === true;
     const notConnected = call.call_status === "not_connected";
-    if (!voicemail && !notConnected && call.transcript) {
-      await insertTranscript(call, phone);
+    const text = transcriptText(call);
+    if (text && !voicemail && !notConnected) {
+      await insertTranscript(call, phone, text);
+    } else {
+      // Se deja constancia en los registros del servidor de por qué no se guarda la transcripción.
+      console.log(`[call_analyzed] transcripción no guardada: buzón=${voicemail} no_conectada=${notConnected} texto=${text ? "sí" : "no"} call=${call.call_id ?? ""}`);
     }
 
     // Doble confirmación: comprueba si el agente usó la herramienta que el cliente necesitaba.
