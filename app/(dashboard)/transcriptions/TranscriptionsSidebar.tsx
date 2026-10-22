@@ -10,6 +10,7 @@ type TranscriptionItem = {
   phone: string | null;
   name: string | null;
   mail: string | null;
+  summary?: string | null;
   fecha: string | null;
 };
 
@@ -98,6 +99,7 @@ export default function TranscriptionsSidebar() {
                     <div className="min-w-0 flex-1">
                       <p className={`truncate text-sm font-medium ${isActive ? "text-brand" : "text-paper-ink"}`}>{title}</p>
                       {subtitle && <p className="mt-0.5 truncate text-xs text-paper-muted">{subtitle}</p>}
+                      {t.summary && <p className="mt-1 truncate text-xs text-paper-inkLight">Motivo: {t.summary}</p>}
                       {preview && <p className="mt-1 line-clamp-2 text-xs leading-snug text-paper-muted">{preview}</p>}
                     </div>
                   </Link>

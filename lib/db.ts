@@ -67,6 +67,7 @@ export type Transcription = {
   name: string | null;
   mail: string | null;
   fecha: Date | null;
+  summary?: string | null;
 };
 
 const SORT_FIELDS = ["created_at", "name", "email", "source"] as const;
@@ -507,10 +508,10 @@ export async function getTranscriptions(
       SELECT t.id, t.transcription, t.phone,
              COALESCE(NULLIF(t.name, ''), l.name) AS name,
              COALESCE(NULLIF(t.mail, ''), l.email) AS mail,
-             t.fecha
+             t.fecha, l.summary AS summary
       FROM ${TRANSCRIPTIONS_TABLE} t
       LEFT JOIN LATERAL (
-        SELECT name, email FROM ${LEADS_TABLE}
+        SELECT name, email, summary FROM ${LEADS_TABLE}
         WHERE phone = t.phone
         ORDER BY created_at DESC LIMIT 1
       ) l ON TRUE
@@ -534,10 +535,10 @@ export async function getTranscriptionById(
         SELECT t.id, t.transcription, t.phone,
                COALESCE(NULLIF(t.name, ''), l.name) AS name,
                COALESCE(NULLIF(t.mail, ''), l.email) AS mail,
-               t.fecha
+               t.fecha, l.summary AS summary
         FROM ${TRANSCRIPTIONS_TABLE} t
         LEFT JOIN LATERAL (
-          SELECT name, email FROM ${LEADS_TABLE}
+          SELECT name, email, summary FROM ${LEADS_TABLE}
           WHERE phone = t.phone
           ORDER BY created_at DESC LIMIT 1
         ) l ON TRUE

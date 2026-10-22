@@ -86,6 +86,12 @@ export default async function TranscriptionDetailPage({ params }: Props) {
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <div className="mx-auto w-full max-w-5xl py-6 md:py-8">
+          {transcription.summary && (
+            <div className="mb-6 rounded-xl border border-paper-border bg-paper-card px-4 py-4 shadow-sm sm:px-6">
+              <p className="text-xs font-medium uppercase tracking-wider text-paper-muted">Motivo indicado en el formulario</p>
+              <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-paper-ink">{transcription.summary}</p>
+            </div>
+          )}
           {turns.length === 0 ? (
             <div className="rounded-xl border border-paper-border bg-paper-card px-4 py-4 text-sm text-paper-muted shadow-sm sm:px-6 sm:py-6">
               Sin contenido de transcripción.
