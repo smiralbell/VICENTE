@@ -22,8 +22,14 @@ export function isWorkingHours(date: Date = new Date()): boolean {
   return hour < 15;
 }
 
-// La IA solo puede atender si el sistema está activo y, en modo "solo fuera de horario",
-// si estamos fuera del horario laboral.
+// El interruptor general. Afecta a todo: chat y llamadas.
+export async function isSystemOn(): Promise<boolean> {
+  const settings = await getDashboardSettings();
+  return settings.systemPublished;
+}
+
+// Solo para llamadas: el sistema debe estar encendido y, en modo "solo fuera laboral",
+// debe ser fuera del horario laboral. El chat no usa esta regla.
 export async function isAiAvailable(now: Date = new Date()): Promise<boolean> {
   const settings = await getDashboardSettings();
   if (!settings.systemPublished) return false;

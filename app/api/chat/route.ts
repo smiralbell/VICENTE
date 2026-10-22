@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { runChatTurn } from "@/lib/chat/agent";
 import { checkWebhookToken } from "@/lib/webhookAuth";
-import { isAiAvailable } from "@/lib/availability";
+import { isSystemOn } from "@/lib/availability";
 
 const UNAVAILABLE_MESSAGE =
   "En este momento el asistente no está disponible. Puede contactar con el despacho directamente.";
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Faltan message y sessionId" }, { status: 400 });
   }
 
-  if (!(await isAiAvailable())) {
+  if (!(await isSystemOn())) {
     return NextResponse.json({ output: UNAVAILABLE_MESSAGE });
   }
 
