@@ -202,6 +202,7 @@ export async function runDerivarInterno(args: DerivarArgs, sessionId: string): P
     clientEmail: args.clientEmail ?? "",
     summaryCase: args.summaryCase,
     sessionId: phone.phone || sessionId,
+    source: "Web chat",
   });
 
   return "Caso derivado al despacho. Se ha avisado al equipo y el cliente será contactado.";

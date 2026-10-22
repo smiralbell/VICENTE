@@ -12,6 +12,8 @@ export type DerivarPayload = {
   clientEmail?: string;
   summaryCase?: string;
   sessionId?: string;
+  // Canal por el que llegó: "Web chat" (chatbot) o "Llamada de voz".
+  source?: string;
 };
 
 function escapeHtml(text: string): string {
@@ -94,9 +96,9 @@ export async function handleDerivar(payload: DerivarPayload): Promise<void> {
 
   await query(
     `INSERT INTO ${LEADS_TABLE} (session_id, name, phone, email, summary, source, status, gestion_estado)
-     VALUES ($1, $2, $3, $4, $5, 'Formulario - Derivado a interno', 'pending_contact', 'derivado')
+     VALUES ($1, $2, $3, $4, $5, $6, 'pending_contact', 'derivado')
      ON CONFLICT (session_id) DO UPDATE SET name = COALESCE(NULLIF(EXCLUDED.name, ''), eliasymunozabogados_leads.name), phone = EXCLUDED.phone, email = COALESCE(NULLIF(EXCLUDED.email, ''), eliasymunozabogados_leads.email), summary = EXCLUDED.summary, source = EXCLUDED.source, status = EXCLUDED.status, fecha = EXCLUDED.fecha, modalidad = EXCLUDED.modalidad, gestion_estado = EXCLUDED.gestion_estado, cita_inicio = EXCLUDED.cita_inicio`,
-    [sessionId, payload.clientName ?? "", payload.clientPhone ?? "", payload.clientEmail ?? "", payload.summaryCase ?? ""]
+    [sessionId, payload.clientName ?? "", payload.clientPhone ?? "", payload.clientEmail ?? "", payload.summaryCase ?? "", payload.source || "Llamada de voz"]
   );
 
   const lawyer = findLawyer(payload.lawyerName);
