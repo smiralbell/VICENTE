@@ -27,9 +27,8 @@ export function getLeadNavigationPath(lead: LeadWithNavigation): string {
     if (lead.transcriptionId) {
       return `/transcriptions/${lead.transcriptionId}`;
     }
-    const q = lead.phone?.trim() || lead.email?.trim() || lead.name?.trim();
-    if (q) return `/transcriptions?q=${encodeURIComponent(q)}`;
-    return `/leads/${lead.id}`;
+    // Sin transcripción: la ficha de la llamada con los datos del formulario y el estado de los intentos.
+    return `/transcriptions/lead/${lead.id}`;
   }
 
   const sessionId = lead.resolvedSessionId ?? lead.session_id;

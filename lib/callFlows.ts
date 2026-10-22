@@ -127,6 +127,24 @@ async function insertTranscript(call: RetellCall, phone: string, text: string): 
   );
 }
 
+// Guarda la transcripción una sola vez. Se llama al terminar la llamada y al analizarla (el que llegue primero).
+async function saveTranscriptOnce(call: RetellCall, phone: string): Promise<void> {
+  const text = transcriptText(call);
+  const voicemail = call.call_analysis?.in_voicemail === true || call.disconnection_reason === "voicemail_reached";
+  const notConnected = call.call_status === "not_connected";
+  const noAnswer = NO_ANSWER_REASONS.has(call.disconnection_reason ?? "");
+  if (!text || voicemail || notConnected || noAnswer) {
+    console.log(`[transcripción] no guardada: motivo=${call.disconnection_reason ?? ""} buzón=${voicemail} no_conectada=${notConnected} texto=${text ? "sí" : "no"} call=${call.call_id ?? ""}`);
+    return;
+  }
+  const { rows } = await query(
+    `SELECT 1 FROM ${TRANSCRIPTIONS_TABLE} WHERE phone = $1 AND transcription = $2 LIMIT 1`,
+    [phone, text]
+  );
+  if (rows.length) return;
+  await insertTranscript(call, phone, text);
+}
+
 // Eventos de Retell: call_started (no hace nada), call_ended (estado),
 // call_analyzed (resumen y transcripción).
 export async function handleRetellCallEvent(payload: RetellWebhookPayload): Promise<void> {
@@ -140,6 +158,7 @@ export async function handleRetellCallEvent(payload: RetellWebhookPayload): Prom
     } else {
       await setStatus(phone, "contacted");
     }
+    await saveTranscriptOnce(call, phone);
     return;
   }
 
@@ -149,15 +168,7 @@ export async function handleRetellCallEvent(payload: RetellWebhookPayload): Prom
       await setSummary(phone, summary);
     }
 
-    const voicemail = call.call_analysis?.in_voicemail === true;
-    const notConnected = call.call_status === "not_connected";
-    const text = transcriptText(call);
-    if (text && !voicemail && !notConnected) {
-      await insertTranscript(call, phone, text);
-    } else {
-      // Se deja constancia en los registros del servidor de por qué no se guarda la transcripción.
-      console.log(`[call_analyzed] transcripción no guardada: buzón=${voicemail} no_conectada=${notConnected} texto=${text ? "sí" : "no"} call=${call.call_id ?? ""}`);
-    }
+    await saveTranscriptOnce(call, phone);
 
     // Doble confirmación: comprueba si el agente usó la herramienta que el cliente necesitaba.
     const entries = call.transcript_with_tool_calls ?? [];
