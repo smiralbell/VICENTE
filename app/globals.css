@@ -1,3 +1,8 @@
+:root {
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Source Sans 3", system-ui, sans-serif;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

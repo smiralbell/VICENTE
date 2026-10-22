@@ -58,7 +58,7 @@ export default function LeadsToolbar({ defaultValue = "", status = "", gestion =
 
   return (
     <div className="flex w-full items-center gap-2">
-      <form onSubmit={handleSubmit} role="search" aria-label="Buscar leads" className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1">
+      <form onSubmit={handleSubmit} role="search" aria-label="Buscar leads" className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
         <Dropdown label="Filtrar por llamada" value={status} options={LEAD_STATUS_FILTERS} onChange={(v) => update({ estado: v })} className="shrink-0" />
         <Dropdown label="Filtrar por gestión" value={gestion} options={GESTION_FILTERS} onChange={(v) => update({ gestion: v })} className="shrink-0" />
         <Dropdown label="Filtrar por modalidad" value={modalidad} options={MODALIDAD_FILTERS} onChange={(v) => update({ modalidad: v })} className="shrink-0" />

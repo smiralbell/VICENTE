@@ -1,18 +1,5 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
-
-const serif = Cormorant_Garamond({
-  weight: ["400", "500", "600"],
-  subsets: ["latin"],
-  variable: "--font-serif",
-});
-
-const sans = Source_Sans_3({
-  weight: ["400", "500", "600"],
-  subsets: ["latin"],
-  variable: "--font-sans",
-});
 
 export const metadata: Metadata = {
   title: "Dashboard — G. Elías y Muñoz Abogados",
@@ -32,7 +19,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={`${serif.variable} ${sans.variable}`}>
+    <html lang="es">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+      </head>
       <body>{children}</body>
     </html>
   );
