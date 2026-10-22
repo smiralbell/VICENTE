@@ -49,6 +49,8 @@ export async function chatCompletion(
     model,
     messages,
     ...(tools && tools.length ? { tools, tool_choice: "auto" } : {}),
+    // Los modelos "luna" no admiten herramientas con razonamiento activo.
+    ...(/luna/.test(model) ? { reasoning_effort: "none" } : {}),
   });
   await recordUsage(model, data.usage?.prompt_tokens ?? 0, data.usage?.completion_tokens ?? 0);
   return data.choices[0].message;
