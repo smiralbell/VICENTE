@@ -3,6 +3,7 @@ import { chatCompletion, type ChatMessage } from "../openai";
 import { loadHistory, saveTurn } from "./memory";
 import { AGENT_SYSTEM_PROMPT } from "./prompt";
 import { CHAT_TOOLS, executeTool } from "./tools";
+import { describeChatDatos, getChatDatos } from "./datos";
 
 const MAX_STEPS = 5;
 const FALLBACK_ANSWER = "Perdone, ahora mismo no logro formular la respuesta. ¿Podría repetirme su consulta, por favor?";
@@ -38,15 +39,16 @@ function nextDaysReference(): string {
   return days.join("; ");
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(datosCliente: string): string {
   const prompt = AGENT_SYSTEM_PROMPT.replace(/\{\{FECHA\}\}/g, spanishNow());
-  return `${prompt}\n\nCalendario de referencia (use estas fechas exactas al registrar una cita): ${nextDaysReference()}.`;
+  return `${prompt}\n\n${datosCliente}\n\nCalendario de referencia (use estas fechas exactas al registrar una cita): ${nextDaysReference()}.`;
 }
 
 export async function runChatTurn(sessionId: string, userText: string): Promise<string> {
   const history = await loadHistory(sessionId);
+  const datosCliente = describeChatDatos(await getChatDatos(sessionId));
   const messages: ChatMessage[] = [
-    { role: "system", content: buildSystemPrompt() },
+    { role: "system", content: buildSystemPrompt(datosCliente) },
     ...history,
     { role: "user", content: userText },
   ];

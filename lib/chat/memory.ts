@@ -2,8 +2,8 @@ import { query } from "../db";
 import type { ChatMessage } from "../openai";
 
 const CHAT_TABLE = "eliasymunozabogados_chat_histories";
-// Igual que en n8n: los últimos 20 mensajes de la sesión.
-const CONTEXT_WINDOW = 20;
+// Los últimos 40 mensajes de la sesión (antes 20). Los datos del cliente van aparte, en su propia tabla.
+const CONTEXT_WINDOW = 40;
 
 type StoredMessage = { type: "human" | "ai"; content: string };
 

@@ -8,6 +8,7 @@ import { handleDerivar } from "../derivar";
 import { parseMadridLocal } from "../dateFormat";
 import { LEAD_EMAIL_TEMPLATE } from "./leadEmailTemplate";
 import { TOOL_DESCRIPTIONS } from "./prompt";
+import { describeChatDatos, getChatDatos, saveChatDatos } from "./datos";
 
 const LEADS_TABLE = "eliasymunozabogados_leads";
 const VECTORS_TABLE = "eliasymunozabogados_vectors";
@@ -90,6 +91,24 @@ export const CHAT_TOOLS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "guardar_datos_cliente",
+      description:
+        "Usa guardar_datos_cliente en cuanto el cliente te dé su nombre, su teléfono, su email o el motivo de la consulta, y cada vez que los corrija. " +
+        "Envía solo los datos que el cliente te haya dado en este mensaje. Así no tendrás que volver a pedirlos.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Nombre del cliente tal como lo ha dicho" },
+          phone: { type: "string", description: "Teléfono de contacto" },
+          email: { type: "string", description: "Email de contacto" },
+          motivo: { type: "string", description: "Motivo de la consulta, en pocas palabras" },
+        },
+      },
+    },
+  },
 ];
 
 // La base de vectores se creó con este modelo (1536 dimensiones). Otro modelo daría resultados incorrectos.
@@ -145,8 +164,19 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
+// Guarda lo que el cliente va diciendo. Solo guarda el teléfono si es válido.
+export async function runGuardarDatos(args: { name?: string; phone?: string; email?: string; motivo?: string }, sessionId: string): Promise<string> {
+  const phone = args.phone ? validatePhone(args.phone) : null;
+  const validPhone = phone && phone.valid && phone.phone ? phone.phone : "";
+  await saveChatDatos(sessionId, { name: args.name ?? "", email: args.email ?? "", motivo: args.motivo ?? "", phone: validPhone });
+  const now = describeChatDatos(await getChatDatos(sessionId));
+  return args.phone && !validPhone ? `${now} El teléfono que ha dado no es válido: pídalo de forma natural.` : now;
+}
+
 export async function runAgendarConsulta(args: AgendarArgs, sessionId: string): Promise<string> {
-  const phone = validatePhone(args.phone);
+  // Lo que el cliente ya ha dado en la conversación rellena los campos que falten.
+  const saved = await getChatDatos(sessionId);
+  const phone = validatePhone(args.phone || saved.phone);
   if (!phone.valid || !phone.phone) {
     return "Falta un teléfono de contacto válido. Pídelo de forma natural, por ejemplo: «¿Me indica un teléfono de contacto, por favor?». No hables de formatos ni de fallos.";
   }
@@ -158,8 +188,8 @@ export async function runAgendarConsulta(args: AgendarArgs, sessionId: string): 
     return "Esa fecha ya ha pasado. Pide al usuario otra fecha futura de forma natural, sin mencionar errores.";
   }
 
-  const name = args.name ?? "";
-  const email = args.email ?? "";
+  const name = args.name || saved.name;
+  const email = args.email || saved.email;
 
   await query(
     `INSERT INTO ${LEADS_TABLE} (session_id, name, phone, email, summary, source, status, fecha, modalidad, gestion_estado, cita_inicio)
@@ -193,16 +223,17 @@ export type DerivarArgs = {
 };
 
 export async function runDerivarInterno(args: DerivarArgs, sessionId: string): Promise<string> {
-  const phone = validatePhone(args.clientPhone);
+  const saved = await getChatDatos(sessionId);
+  const phone = validatePhone(args.clientPhone || saved.phone);
   if (!phone.valid || !phone.phone) {
     return "Falta un teléfono de contacto válido. Pídelo de forma natural antes de derivar el caso. No hables de formatos ni de fallos.";
   }
 
   await handleDerivar({
     lawyerName: args.lawyerName ?? "",
-    clientName: args.clientName ?? "",
+    clientName: args.clientName || saved.name,
     clientPhone: phone.phone,
-    clientEmail: args.clientEmail ?? "",
+    clientEmail: args.clientEmail || saved.email,
     summaryCase: args.summaryCase,
     sessionId: phone.phone || sessionId,
     source: "Web chat",
@@ -246,6 +277,12 @@ export async function executeTool(name: string, rawArgs: string, sessionId: stri
           summaryCase: args.summaryCase ?? "",
           lawyerName: args.lawyerName,
         },
+        sessionId
+      );
+    }
+    if (name === "guardar_datos_cliente") {
+      return await runGuardarDatos(
+        { name: args.name, phone: args.phone, email: args.email, motivo: args.motivo },
         sessionId
       );
     }
