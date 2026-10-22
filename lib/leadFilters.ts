@@ -151,6 +151,23 @@ export function getCallState(lead: CallLead) {
   return NO_CALL_STATE;
 }
 
+// Estado único del lead para el despacho. La gestión manda cuando ya hay una decisión (derivado, cita, cerrado);
+// si no, se muestra lo que ha pasado con la llamada.
+const ESTADO_PENDIENTE = { label: "Pendiente de gestionar", description: "Nadie del despacho lo ha revisado todavía.", className: "bg-slate-100 text-slate-700 border border-slate-200" };
+const ESTADO_BY_GESTION: Record<string, { label: string; description: string; className: string }> = {
+  cerrado: { label: "Cerrado", description: "Caso resuelto o descartado.", className: "bg-zinc-200 text-zinc-700 border border-zinc-300" },
+  derivado: { label: "Derivado", description: "El caso lo tiene que llevar un abogado concreto.", className: "bg-violet-100 text-violet-800 border border-violet-200" },
+  cita_confirmada: { label: "Cita confirmada", description: "Un abogado ha confirmado la consulta.", className: "bg-emerald-600 text-white border border-emerald-700" },
+  cita_pendiente: { label: "Agendado", description: "Hay una consulta agendada pendiente de confirmar.", className: "bg-sky-100 text-sky-800 border border-sky-200" },
+};
+
+export function getLeadEstado(lead: CallLead & { gestion_estado: string | null }) {
+  const byGestion = lead.gestion_estado ? ESTADO_BY_GESTION[lead.gestion_estado] : undefined;
+  if (byGestion) return byGestion;
+  const call = getCallState(lead);
+  return call.label === NO_CALL_STATE.label ? ESTADO_PENDIENTE : call;
+}
+
 // De dónde llegó el lead, a partir del campo source que guarda cada flujo.
 export function getOriginPill(source: string | null) {
   const value = (source ?? "").trim();

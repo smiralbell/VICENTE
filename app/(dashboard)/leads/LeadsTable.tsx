@@ -7,7 +7,7 @@ import { useCallback, useState } from "react";
 import type { LeadSortField } from "@/lib/db";
 import type { LeadWithNavigation } from "@/lib/leadNavigation";
 import { getLeadNavigationPath } from "@/lib/leadNavigation";
-import { getCallState, getOriginPill, hasAppointment, type LeadFilters } from "@/lib/leadFilters";
+import { getLeadEstado, getOriginPill, hasAppointment, type LeadFilters } from "@/lib/leadFilters";
 import GestionSelect from "./GestionSelect";
 import { formatMadrid } from "@/lib/dateFormat";
 
@@ -48,7 +48,7 @@ const COLUMNS: { key: LeadSortField | null; label: string }[] = [
   { key: "name", label: "Nombre" },
   { key: null, label: "Teléfono" },
   { key: null, label: "Origen" },
-  { key: null, label: "Llamada" },
+  { key: null, label: "Estado" },
   { key: null, label: "Gestión" },
   { key: null, label: "Horario reunión" },
   { key: null, label: "Modalidad" },
@@ -191,7 +191,7 @@ export default function LeadsTable({
               </div>
               <div className="shrink-0">
                 {(() => {
-                  const pill = getCallState(lead);
+                  const pill = getLeadEstado(lead);
                   return (
                     <span
                       className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${pill.className}`}
@@ -305,7 +305,7 @@ export default function LeadsTable({
               </td>
               <td className="py-2.5 px-2 text-xs text-paper-muted lg:py-3 lg:px-3 lg:text-sm">
                 {(() => {
-                  const pill = getCallState(lead);
+                  const pill = getLeadEstado(lead);
                   return (
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${pill.className}`}
