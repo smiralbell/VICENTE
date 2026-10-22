@@ -299,6 +299,14 @@ export async function getLeadById(id: number): Promise<Lead | null> {
   return rows[0] ?? null;
 }
 
+export async function getLeadByPhone(phone: string): Promise<Lead | null> {
+  const { rows } = await query<Lead>(
+    `SELECT id, created_at, fecha, modalidad, name, email, phone, session_id, summary, source, status, call_attempts, gestion_estado, cita_inicio FROM ${LEADS_TABLE} WHERE phone = $1 ORDER BY created_at DESC LIMIT 1`,
+    [phone]
+  );
+  return rows[0] ?? null;
+}
+
 export async function getLeadBySessionId(
   sessionId: string
 ): Promise<Lead | null> {

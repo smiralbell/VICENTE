@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getTranscriptionById } from "@/lib/db";
+import { getTranscriptionById, getLeadByPhone } from "@/lib/db";
+import LeadPanel from "../../leads/LeadPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -74,10 +75,12 @@ export default async function TranscriptionDetailPage({ params }: Props) {
   if (!transcription) notFound();
 
   const turns = parseTranscription(transcription.transcription);
+  const lead = transcription.phone ? await getLeadByPhone(transcription.phone) : null;
 
   return (
+    <div className="flex h-full min-h-0 flex-1">
     <section
-      className="flex h-full min-h-0 flex-1 flex-col bg-paper px-4 pt-4 sm:px-6 sm:pt-6 md:px-12 md:pt-12"
+      className="flex min-w-0 flex-1 flex-col bg-paper px-4 pt-4 sm:px-6 sm:pt-6 md:px-12 md:pt-12"
       aria-label="Transcripción de llamada"
     >
       <header className="shrink-0 border-b border-paper-border bg-paper pb-4 md:pb-6">
@@ -154,6 +157,10 @@ export default async function TranscriptionDetailPage({ params }: Props) {
         </div>
       </div>
     </section>
+    <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-paper-border bg-paper-card p-5 xl:block">
+      <LeadPanel lead={lead} fallback={{ name: transcription.name, phone: transcription.phone, email: transcription.mail }} summaryLabel="Resumen de la llamada" />
+    </aside>
+    </div>
   );
 }
 

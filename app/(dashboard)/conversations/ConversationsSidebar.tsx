@@ -2,24 +2,36 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Dropdown from "@/components/Dropdown";
+import { GESTION_FILTERS } from "@/lib/leadFilters";
+
+type LeadLite = {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  session_id: string | null;
+  summary: string | null;
+  source: string | null;
+  created_at: string;
+  status: string | null;
+  gestion_estado: string | null;
+};
 
 type SessionWithLeadAndPreview = {
   session_id: string;
   message_count: number;
   last_message_at: Date | null;
-  lead: {
-    id: number;
-    name: string;
-    email: string;
-    phone: string | null;
-    session_id: string | null;
-    summary: string | null;
-    source: string | null;
-    created_at: string;
-  } | null;
+  lead: LeadLite | null;
   last_message_preview: string | null;
 };
+
+const LEAD_FILTERS = [
+  { key: "", label: "Todas las conversaciones", dot: "" },
+  { key: "con_lead", label: "Con lead", dot: "bg-emerald-500" },
+  { key: "sin_lead", label: "Sin lead", dot: "bg-paper-border" },
+];
 
 function getInitial(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -35,6 +47,8 @@ export default function ConversationsSidebar() {
   const q = searchParams.get("q") ?? "";
   const [sessions, setSessions] = useState<SessionWithLeadAndPreview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [leadFilter, setLeadFilter] = useState("");
+  const [gestionFilter, setGestionFilter] = useState("");
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
@@ -50,101 +64,110 @@ export default function ConversationsSidebar() {
     fetchSessions();
   }, [fetchSessions]);
 
+  const kpis = useMemo(() => {
+    const withLead = sessions.filter((s) => s.lead);
+    return {
+      total: sessions.length,
+      conLead: withLead.length,
+      sinLead: sessions.length - withLead.length,
+      pendientes: withLead.filter((s) => s.lead?.gestion_estado === "pendiente").length,
+      citas: withLead.filter((s) => s.lead?.gestion_estado === "cita_pendiente").length,
+    };
+  }, [sessions]);
+
+  const visible = useMemo(
+    () =>
+      sessions.filter((s) => {
+        if (leadFilter === "con_lead" && !s.lead) return false;
+        if (leadFilter === "sin_lead" && s.lead) return false;
+        if (gestionFilter && s.lead?.gestion_estado !== gestionFilter) return false;
+        return true;
+      }),
+    [sessions, leadFilter, gestionFilter]
+  );
+
+  const cards = [
+    { label: "Conversaciones", value: kpis.total, tone: "text-paper-ink" },
+    { label: "Con lead", value: kpis.conLead, tone: "text-emerald-700" },
+    { label: "Pendientes", value: kpis.pendientes, tone: "text-slate-700" },
+    { label: "Citas por confirmar", value: kpis.citas, tone: "text-sky-700" },
+  ];
+
   return (
     <div className="flex h-full min-h-0 w-full shrink-0 flex-col border-r border-paper-border md:w-[320px]">
-      <div className="flex min-h-0 flex-1 flex-col pt-4 px-4 sm:pt-6 sm:px-5 md:pt-10 md:px-6">
-        <div className="shrink-0">
-          <form
-            method="get"
-            action="/conversations"
-            className="flex flex-col gap-2 sm:flex-row"
-            role="search"
-            aria-label="Buscar conversaciones"
-          >
+      <div className="flex min-h-0 flex-1 flex-col pt-4 px-4 sm:pt-6 sm:px-5 md:pt-8 md:px-6">
+        <div className="shrink-0 space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            {cards.map((c) => (
+              <div key={c.label} className="rounded-xl border border-paper-border bg-paper-card px-3 py-2 shadow-sm">
+                <p className="text-[11px] text-paper-muted">{c.label}</p>
+                <p className={`text-lg font-semibold ${c.tone}`}>{c.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <form method="get" action="/conversations" className="flex gap-2" role="search" aria-label="Buscar conversaciones">
             <input
               type="search"
               name="q"
               defaultValue={q}
               placeholder="Buscar conversaciones..."
               aria-label="Texto de búsqueda"
-              className="min-w-0 flex-1 rounded-md border border-paper-border bg-white px-3 py-3 text-base text-paper-ink placeholder-paper-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand sm:py-2 sm:text-sm"
+              className="min-w-0 flex-1 rounded-xl border border-paper-border bg-paper-card px-3 py-2 text-sm text-paper-ink placeholder-paper-muted shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
             />
-            <button
-              type="submit"
-              className="shrink-0 rounded-md bg-brand px-4 py-3 text-base font-medium text-white hover:bg-brand-hover sm:py-2 sm:text-sm"
-            >
-              Buscar
-            </button>
           </form>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto pt-4 md:pt-5">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <span className="text-sm text-paper-muted">Cargando…</span>
-          </div>
-        ) : sessions.length === 0 ? (
-          <div className="py-12 text-center text-sm text-paper-muted">
-            No hay conversaciones
-          </div>
-        ) : (
-          <ul className="space-y-1">
-            {sessions.map((s) => {
-              const href = `/conversations/${encodeURIComponent(s.session_id)}`;
-              const isActive = pathname === href;
-              const displayName =
-                s.lead?.name ?? s.session_id.slice(0, 16) + "…";
-              const sub =
-                s.lead?.email ??
-                s.lead?.phone ??
-                "";
-              const initial = getInitial(
-                s.lead?.name ?? s.session_id.slice(0, 2)
-              );
 
-              return (
-                <li key={s.session_id}>
-                  <Link
-                    href={href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`flex min-h-[56px] items-start gap-3 rounded-lg px-3 py-3 transition-colors ${
-                      isActive
-                        ? "bg-brand-subtle"
-                        : "hover:bg-paper active:bg-paper-border"
-                    }`}
-                  >
-                    <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium ${
-                        isActive
-                          ? "bg-brand text-white"
-                          : "bg-paper-border text-paper-inkLight"
+          <div className="flex flex-wrap gap-2">
+            <Dropdown label="Filtrar por lead" value={leadFilter} options={LEAD_FILTERS} onChange={setLeadFilter} />
+            <Dropdown label="Filtrar por gestión" value={gestionFilter} options={GESTION_FILTERS} onChange={setGestionFilter} />
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto pt-4 md:pt-5">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <span className="text-sm text-paper-muted">Cargando…</span>
+            </div>
+          ) : visible.length === 0 ? (
+            <div className="py-12 text-center text-sm text-paper-muted">No hay conversaciones con estos filtros</div>
+          ) : (
+            <ul className="space-y-1">
+              {visible.map((s) => {
+                const href = `/conversations/${encodeURIComponent(s.session_id)}`;
+                const isActive = pathname === href;
+                const displayName = s.lead?.name || s.session_id.slice(0, 16) + "…";
+                const sub = s.lead?.email || s.lead?.phone || "";
+                const initial = getInitial(s.lead?.name || s.session_id.slice(0, 2));
+
+                return (
+                  <li key={s.session_id}>
+                    <Link
+                      href={href}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`flex min-h-[56px] items-start gap-3 rounded-xl px-3 py-3 transition-colors ${
+                        isActive ? "bg-brand-subtle" : "hover:bg-paper active:bg-paper-border"
                       }`}
                     >
-                      {initial}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={`truncate text-sm font-medium ${
-                          isActive ? "text-brand" : "text-paper-ink"
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium ${
+                          isActive ? "bg-brand text-white" : "bg-paper-border text-paper-inkLight"
                         }`}
                       >
-                        {displayName}
-                      </p>
-                      {sub && (
-                        <p className="mt-0.5 truncate text-xs text-paper-muted">
-                          {sub}
+                        {initial}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={`truncate text-sm font-medium ${isActive ? "text-brand" : "text-paper-ink"}`}>{displayName}</p>
+                        {sub && <p className="mt-0.5 truncate text-xs text-paper-muted">{sub}</p>}
+                        <p className="mt-1 line-clamp-2 text-xs leading-snug text-paper-muted">
+                          {s.last_message_preview ?? `${s.message_count} mensajes`}
                         </p>
-                      )}
-                      <p className="mt-1 line-clamp-2 text-xs leading-snug text-paper-muted">
-                        {s.last_message_preview ??
-                          `${s.message_count} mensajes`}
-                      </p>
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       </div>
     </div>

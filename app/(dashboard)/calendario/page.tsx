@@ -118,7 +118,7 @@ export default async function CalendarioPage({ searchParams }: Props) {
         </div>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
+      <div>
         <div className="overflow-hidden rounded-2xl border border-paper-border bg-paper-card shadow-sm">
           <div className="grid grid-cols-7 border-b border-paper-border bg-paper text-xs font-medium text-paper-muted">
             {WEEKDAYS.map((d) => (
@@ -158,29 +158,7 @@ export default async function CalendarioPage({ searchParams }: Props) {
           </div>
         </div>
 
-        <aside className="rounded-2xl border border-paper-border bg-paper-card p-4 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-paper-ink">Citas del mes</h2>
-          {rows.length === 0 && <p className="text-sm text-paper-muted">No hay citas con estos filtros.</p>}
-          <ul className="space-y-2.5">
-            {rows.map((row) => {
-              const gestionState = getGestionState(row.gestion_estado);
-              return (
-                <li key={row.id}>
-                  <Link href={`/leads/${row.id}`} className="block rounded-xl border border-paper-border p-3 transition-shadow hover:shadow-md">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-paper-muted">{formatMadrid(row.cita_inicio)}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${isVideo(row) ? "bg-sky-100 text-sky-800" : "bg-violet-100 text-violet-800"}`}>
-                        {isVideo(row) ? "Meet" : "Presencial"}
-                      </span>
-                    </div>
-                    <p className="mt-1 truncate text-sm font-medium text-paper-ink">{row.name || row.phone || "Sin nombre"}</p>
-                    <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${gestionState.className}`}>{gestionState.label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </aside>
+
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-paper-muted">
