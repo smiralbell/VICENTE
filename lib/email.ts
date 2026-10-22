@@ -20,7 +20,7 @@ function getTransporter(): nodemailer.Transporter {
 }
 
 // Copia oculta de todos los correos, para revisar que llegan bien. Con EMAIL_COPY_TO vacío no se envía copia.
-const DEFAULT_COPY_TO = "info@agenciabuffalo.es";
+const DEFAULT_COPY_TO = "agenciabuffaloo@gmail.com";
 
 export async function sendMail(params: { to: string; subject: string; html: string }): Promise<void> {
   const copyTo = (process.env.EMAIL_COPY_TO ?? DEFAULT_COPY_TO).trim();
