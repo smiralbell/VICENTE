@@ -186,7 +186,7 @@ export async function getLeadsKpis(): Promise<LeadKpis> {
   }>(
     `SELECT
       COUNT(*)::text AS total,
-      COUNT(*) FILTER (WHERE status = 'pending_contact')::text AS sin_llamar,
+      COUNT(*) FILTER (WHERE status = 'pending_contact' AND source = 'Formulario')::text AS sin_llamar,
       COUNT(*) FILTER (WHERE gestion_estado = 'pendiente')::text AS pendientes_gestion,
       COUNT(*) FILTER (WHERE gestion_estado = 'cita_pendiente')::text AS citas_pendientes,
       COUNT(*) FILTER (WHERE gestion_estado = 'cita_confirmada')::text AS citas_confirmadas,

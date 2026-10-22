@@ -3,15 +3,18 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import Dropdown from "@/components/Dropdown";
-import { GESTION_STATES, getGestionState } from "@/lib/leadFilters";
+import { getGestionState, gestionOptionsFor } from "@/lib/leadFilters";
 
 type Props = {
   leadId: number;
   value: string | null;
+  // Sin fecha y modalidad no se puede marcar la cita como pendiente ni confirmada.
+  hasAppointment: boolean;
+  compact?: boolean;
 };
 
 // Cambia el estado de gestión de un lead desde la tabla o la ficha.
-export default function GestionSelect({ leadId, value, compact = false }: Props & { compact?: boolean }) {
+export default function GestionSelect({ leadId, value, hasAppointment, compact = false }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [current, setCurrent] = useState(value ?? "pendiente");
@@ -40,7 +43,7 @@ export default function GestionSelect({ leadId, value, compact = false }: Props 
         disabled={isPending}
         onChange={change}
         compact={compact}
-        options={GESTION_STATES.map((g) => ({ key: g.key, label: g.label, className: g.className }))}
+        options={gestionOptionsFor(current, hasAppointment).map((g) => ({ key: g.key, label: g.label, className: g.className }))}
       />
     </div>
   );

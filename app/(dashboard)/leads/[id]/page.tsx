@@ -1,5 +1,5 @@
 import GestionSelect from "../GestionSelect";
-import { getStatusPill } from "@/lib/leadFilters";
+import { getCallState, hasAppointment } from "@/lib/leadFilters";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLeadById } from "@/lib/db";
@@ -155,8 +155,8 @@ export default async function LeadDetailPage({ params }: Props) {
             <dt className="text-[11px] font-medium uppercase tracking-wider text-paper-muted">
               Llamada (automática)
             </dt>
-            <dd className="mt-1 text-sm text-paper-ink" title={getStatusPill(lead.status).description}>
-              {getStatusPill(lead.status).label}
+            <dd className="mt-1 text-sm text-paper-ink" title={getCallState(lead).description}>
+              {getCallState(lead).label}
             </dd>
           </div>
           <div>
@@ -164,7 +164,7 @@ export default async function LeadDetailPage({ params }: Props) {
               Gestión
             </dt>
             <dd className="mt-1">
-              <GestionSelect leadId={lead.id} value={lead.gestion_estado} />
+              <GestionSelect leadId={lead.id} value={lead.gestion_estado} hasAppointment={hasAppointment(lead)} />
             </dd>
           </div>
           <div className="sm:col-span-2">

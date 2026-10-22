@@ -1,7 +1,7 @@
 import { reportIncident } from "@/lib/incidents";
 import { NextResponse } from "next/server";
-import { setLeadGestion } from "@/lib/db";
-import { isGestionState } from "@/lib/leadFilters";
+import { getLeadById, setLeadGestion } from "@/lib/db";
+import { APPOINTMENT_GESTION_KEYS, hasAppointment, isGestionState } from "@/lib/leadFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +26,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   try {
+    // Una cita sin fecha ni modalidad no es una cita: no se puede marcar como pendiente ni confirmada.
+    if (APPOINTMENT_GESTION_KEYS.includes(body.gestion)) {
+      const lead = await getLeadById(leadId);
+      if (!lead || !hasAppointment(lead)) {
+        return NextResponse.json({ error: "Este lead no tiene fecha y modalidad de cita" }, { status: 409 });
+      }
+    }
     await setLeadGestion(leadId, body.gestion);
     return NextResponse.json({ ok: true, gestion: body.gestion });
   } catch (error) {

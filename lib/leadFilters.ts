@@ -125,3 +125,40 @@ export function getStatusPill(status: string | null) {
     ? { label: state.label, description: state.description, className: state.className }
     : { label: status, description: "", className: "bg-paper-border text-paper-muted" };
 }
+
+// Los leads del chat o de una derivación nunca reciben llamada automática: no se muestra "Sin llamar".
+const PHONE_SOURCE = /llamada|\{\{/i;
+const PHONE_CALL_STATE = {
+  label: "Llamó al despacho",
+  description: "La persona llamó al número del despacho. No hace falta llamarle.",
+  className: "bg-sky-100 text-sky-800 border border-sky-200",
+};
+const NO_CALL_STATE = {
+  label: "No aplica",
+  description: "Llegó por el chat del web o por una derivación. No hay llamada automática.",
+  className: "bg-paper-border text-paper-muted",
+};
+
+type CallLead = { status: string | null; source: string | null };
+
+// Estado de la llamada según el origen del lead.
+export function getCallState(lead: CallLead) {
+  const source = lead.source ?? "";
+  if (PHONE_SOURCE.test(source)) return PHONE_CALL_STATE;
+  // Formulario web: "Sin llamar" hasta que el agente llame. Otros orígenes solo si hubo intentos de llamada.
+  const hasCallHistory = Boolean(lead.status && lead.status !== "pending_contact" && lead.status in CALL_STATES);
+  if (source === "Formulario" || hasCallHistory) return getStatusPill(lead.status);
+  return NO_CALL_STATE;
+}
+
+export const APPOINTMENT_GESTION_KEYS = ["cita_pendiente", "cita_confirmada"];
+
+// Una cita solo existe si tiene fecha y modalidad. Sin ellas no se puede confirmar ni tener pendiente.
+export function hasAppointment(lead: { cita_inicio: string | Date | null; fecha: string | Date | null; modalidad: string | null }): boolean {
+  return Boolean(lead.cita_inicio || lead.fecha) && Boolean(lead.modalidad?.trim());
+}
+
+// Estados de gestión que se pueden elegir para un lead: los de cita solo si tiene cita (o el que ya tiene).
+export function gestionOptionsFor(current: string | null, appointment: boolean) {
+  return GESTION_STATES.filter((g) => appointment || !APPOINTMENT_GESTION_KEYS.includes(g.key) || g.key === current);
+}

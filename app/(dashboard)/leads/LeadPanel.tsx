@@ -1,6 +1,6 @@
 import type { Lead } from "@/lib/db";
 import { formatMadrid } from "@/lib/dateFormat";
-import { getStatusPill } from "@/lib/leadFilters";
+import { getCallState, getStatusPill, hasAppointment } from "@/lib/leadFilters";
 import GestionSelect from "./GestionSelect";
 
 type Fallback = {
@@ -22,7 +22,7 @@ export default function LeadPanel({ lead, fallback, summaryLabel = "Resumen" }: 
   const name = lead?.name || fallback?.name || null;
   const phone = lead?.phone || fallback?.phone || null;
   const email = lead?.email || fallback?.email || null;
-  const call = getStatusPill(lead?.status ?? null);
+  const call = lead ? getCallState(lead) : getStatusPill(null);
 
   const rows: [string, string][] = [
     ["Nombre", dash(name)],
@@ -31,7 +31,7 @@ export default function LeadPanel({ lead, fallback, summaryLabel = "Resumen" }: 
     ["Origen", dash(lead?.source)],
     ["Creado", lead ? formatMadrid(lead.created_at) : "–"],
     ["Modalidad", dash(lead?.modalidad)],
-    ["Cita", lead?.cita_inicio ? formatMadrid(lead.cita_inicio) : "–"],
+    ["Cita", lead && hasAppointment(lead) ? formatMadrid(lead.cita_inicio ?? lead.fecha) : "Sin cita"],
   ];
 
   return (
@@ -62,7 +62,11 @@ export default function LeadPanel({ lead, fallback, summaryLabel = "Resumen" }: 
           </div>
           <div>
             <p className="mb-1 text-xs text-paper-muted">Gestión</p>
-            {lead ? <GestionSelect leadId={lead.id} value={lead.gestion_estado} /> : <span className="text-sm text-paper-muted">–</span>}
+            {lead ? (
+              <GestionSelect leadId={lead.id} value={lead.gestion_estado} hasAppointment={hasAppointment(lead)} />
+            ) : (
+              <span className="text-sm text-paper-muted">–</span>
+            )}
           </div>
         </div>
       </section>
