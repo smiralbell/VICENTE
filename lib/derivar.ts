@@ -22,8 +22,8 @@ export async function handleDerivar(payload: DerivarPayload): Promise<void> {
   const sessionId = payload.sessionId || payload.clientPhone || "";
 
   await query(
-    `INSERT INTO ${LEADS_TABLE} (session_id, name, phone, email, summary, source, status)
-     VALUES ($1, $2, $3, $4, $5, 'Formulario - Derivado a interno', 'pending_contact')`,
+    `INSERT INTO ${LEADS_TABLE} (session_id, name, phone, email, summary, source, status, gestion_estado)
+     VALUES ($1, $2, $3, $4, $5, 'Formulario - Derivado a interno', 'pending_contact', 'derivado')`,
     [sessionId, payload.clientName ?? "", payload.clientPhone ?? "", payload.clientEmail ?? "", payload.summaryCase ?? ""]
   );
 

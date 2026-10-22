@@ -4,6 +4,7 @@ import { sendMail } from "../email";
 import { chatCompletion, createEmbedding, type ToolDefinition } from "../openai";
 import { validatePhone } from "../phone";
 import { handleDerivar } from "../derivar";
+import { parseMadridLocal } from "../dateFormat";
 import { LEAD_EMAIL_TEMPLATE } from "./leadEmailTemplate";
 import { TOOL_DESCRIPTIONS } from "./prompt";
 
@@ -153,9 +154,9 @@ export async function runAgendarConsulta(args: AgendarArgs, sessionId: string): 
   const email = args.email ?? "";
 
   await query(
-    `INSERT INTO ${LEADS_TABLE} (session_id, name, phone, email, summary, source, status, fecha, modalidad)
-     VALUES ($1, $2, $3, $4, $5, $8, 'pending_contact', $6, $7)`,
-    [sessionId, name, phone.phone, email, args.summaryCase, args.horario, args.modalidad, args.source ?? 'Web chat']
+    `INSERT INTO ${LEADS_TABLE} (session_id, name, phone, email, summary, source, status, fecha, modalidad, gestion_estado, cita_inicio)
+     VALUES ($1, $2, $3, $4, $5, $8, 'pending_contact', $6, $7, 'cita_pendiente', $9)`,
+    [sessionId, name, phone.phone, email, args.summaryCase, args.horario, args.modalidad, args.source ?? 'Web chat', parseMadridLocal(args.horario)?.toISOString() ?? null]
   );
 
   await sendMail({

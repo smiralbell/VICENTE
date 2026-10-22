@@ -9,10 +9,78 @@ export function isDateFilter(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+// Estado de la llamada: lo pone el sistema (agente de voz y reintentos).
+export const CALL_STATES: Record<string, { label: string; description: string; className: string }> = {
+  pending_contact: {
+    label: "Sin llamar",
+    description: "El lead ha llegado y todavía no se le ha llamado con el agente de voz.",
+    className: "bg-amber-100 text-amber-800 border border-amber-200",
+  },
+  contacted: {
+    label: "Contestó",
+    description: "El agente de voz llamó y la persona contestó.",
+    className: "bg-emerald-100 text-emerald-800 border border-emerald-200",
+  },
+  no_answer: {
+    label: "No contesta",
+    description: "Se llamó dos veces y nadie contestó. No se volverá a llamar automáticamente.",
+    className: "bg-rose-100 text-rose-800 border border-rose-200",
+  },
+  retry_pending: {
+    label: "Reintento pendiente",
+    description: "No contestó la primera llamada. Está programado un segundo intento automático.",
+    className: "bg-orange-100 text-orange-800 border border-orange-200",
+  },
+};
+
+// Estado de gestión: lo cambian las personas del despacho.
+export const GESTION_STATES: { key: string; label: string; description: string; className: string }[] = [
+  {
+    key: "pendiente",
+    label: "Pendiente de gestionar",
+    description: "Nadie del despacho lo ha revisado todavía.",
+    className: "bg-slate-100 text-slate-700 border border-slate-200",
+  },
+  {
+    key: "cita_pendiente",
+    label: "Cita pendiente de confirmar",
+    description: "El agente ha agendado una consulta y falta que alguien del despacho la confirme.",
+    className: "bg-sky-100 text-sky-800 border border-sky-200",
+  },
+  {
+    key: "cita_confirmada",
+    label: "Cita confirmada",
+    description: "Un abogado ha confirmado la consulta.",
+    className: "bg-emerald-100 text-emerald-800 border border-emerald-200",
+  },
+  {
+    key: "derivado",
+    label: "Derivado a abogado",
+    description: "El caso lo tiene que llevar un abogado concreto.",
+    className: "bg-violet-100 text-violet-800 border border-violet-200",
+  },
+  {
+    key: "cerrado",
+    label: "Cerrado",
+    description: "Caso resuelto o descartado.",
+    className: "bg-paper-border text-paper-muted",
+  },
+];
+
+export const GESTION_KEYS = GESTION_STATES.map((g) => g.key);
+
+export function isGestionState(value: string): boolean {
+  return GESTION_KEYS.includes(value);
+}
+
+export function getGestionState(key: string | null) {
+  return GESTION_STATES.find((g) => g.key === key) ?? GESTION_STATES[0];
+}
+
 export const LEAD_STATUS_FILTERS = [
-  { key: "", label: "Todos los estados" },
-  { key: "pending_contact", label: "Pendiente" },
-  { key: "contacted", label: "Contactado" },
+  { key: "", label: "Todas las llamadas" },
+  { key: "pending_contact", label: "Sin llamar" },
+  { key: "contacted", label: "Contestó" },
   { key: "no_answer", label: "No contesta" },
   { key: "retry_pending", label: "Reintento pendiente" },
 ];
@@ -32,30 +100,12 @@ export function isModalidadFilter(value: string): boolean {
   return MODALIDAD_FILTERS.some((f) => f.key === value);
 }
 
-const STATUS_PILLS: Record<string, { label: string; className: string }> = {
-  pending_contact: {
-    label: "Pendiente",
-    className: "bg-amber-100 text-amber-800 border border-amber-200",
-  },
-  contacted: {
-    label: "Contactado",
-    className: "bg-emerald-100 text-emerald-800 border border-emerald-200",
-  },
-  no_answer: {
-    label: "No contesta",
-    className: "bg-rose-100 text-rose-800 border border-rose-200",
-  },
-  retry_pending: {
-    label: "Reintento pendiente",
-    className: "bg-orange-100 text-orange-800 border border-orange-200",
-  },
-};
-
 export function getStatusPill(status: string | null) {
   if (!status) {
-    return { label: "Sin estado", className: "bg-paper-border text-paper-muted" };
+    return { label: "Sin llamar", description: "", className: "bg-paper-border text-paper-muted" };
   }
-  return (
-    STATUS_PILLS[status] ?? { label: status, className: "bg-paper-border text-paper-muted" }
-  );
+  const state = CALL_STATES[status];
+  return state
+    ? { label: state.label, description: state.description, className: state.className }
+    : { label: status, description: "", className: "bg-paper-border text-paper-muted" };
 }

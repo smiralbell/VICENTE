@@ -1,3 +1,5 @@
+import GestionSelect from "../GestionSelect";
+import { getStatusPill } from "@/lib/leadFilters";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLeadById } from "@/lib/db";
@@ -151,14 +153,18 @@ export default async function LeadDetailPage({ params }: Props) {
           </div>
           <div>
             <dt className="text-[11px] font-medium uppercase tracking-wider text-paper-muted">
-              Estado
+              Llamada (automática)
             </dt>
-            <dd className="mt-1 text-sm text-paper-ink">
-              {lead.status === "pending_contact"
-                ? "Pendiente contacto"
-                : lead.status === "contacted"
-                  ? "Contactado"
-                  : "Sin estado"}
+            <dd className="mt-1 text-sm text-paper-ink" title={getStatusPill(lead.status).description}>
+              {getStatusPill(lead.status).label}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-medium uppercase tracking-wider text-paper-muted">
+              Gestión
+            </dt>
+            <dd className="mt-1">
+              <GestionSelect leadId={lead.id} value={lead.gestion_estado} />
             </dd>
           </div>
           <div className="sm:col-span-2">

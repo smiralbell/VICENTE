@@ -8,6 +8,7 @@ import type { LeadSortField } from "@/lib/db";
 import type { LeadWithNavigation } from "@/lib/leadNavigation";
 import { getLeadNavigationPath } from "@/lib/leadNavigation";
 import { getStatusPill, type LeadFilters } from "@/lib/leadFilters";
+import GestionSelect from "./GestionSelect";
 import { formatMadrid } from "@/lib/dateFormat";
 
 function parseDate(value: Date | string | null | undefined): Date | null {
@@ -48,7 +49,8 @@ const COLUMNS: { key: LeadSortField | null; label: string }[] = [
   { key: "email", label: "Email" },
   { key: null, label: "Teléfono" },
   { key: "source", label: "Fuente" },
-  { key: null, label: "Estado" },
+  { key: null, label: "Llamada" },
+  { key: null, label: "Gestión" },
   { key: null, label: "Resumen" },
   { key: null, label: "Horario reunión" },
   { key: null, label: "Modalidad" },
@@ -298,6 +300,9 @@ export default function LeadsTable({
                     </span>
                   );
                 })()}
+              </td>
+              <td className="py-2.5 px-2 text-xs lg:py-3 lg:px-3 lg:text-sm">
+                <GestionSelect leadId={lead.id} value={lead.gestion_estado} />
               </td>
               <td
                 className="max-w-[160px] truncate py-2.5 px-2 text-xs text-paper-muted lg:max-w-[200px] lg:py-3 lg:px-3 lg:text-sm"
