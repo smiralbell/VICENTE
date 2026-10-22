@@ -55,8 +55,15 @@ export default async function LeadPanel({ lead, fallback, summaryLabel = "Resume
 
       {lead?.summary && (
         <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-paper-muted">{summaryLabel === "Resumen" ? "Motivo indicado" : summaryLabel}</h2>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-paper-muted">Motivo indicado en el formulario</h2>
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-paper-ink">{lead.summary}</p>
+        </section>
+      )}
+
+      {lead?.resumen_llamada && (
+        <section>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-paper-muted">Resumen de la llamada</h2>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-paper-ink">{lead.resumen_llamada}</p>
         </section>
       )}
 

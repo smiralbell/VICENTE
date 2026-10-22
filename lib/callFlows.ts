@@ -103,7 +103,7 @@ async function retryOnceOrGiveUp(call: RetellCall, phone: string): Promise<void>
 }
 
 async function setSummary(phone: string, summary: string): Promise<void> {
-  await query(`UPDATE ${LEADS_TABLE} SET summary = $2 WHERE session_id = $1`, [phone, summary]);
+  await query(`UPDATE ${LEADS_TABLE} SET resumen_llamada = $2 WHERE session_id = $1`, [phone, summary]);
 }
 
 // Texto de la llamada: el campo transcript, o si viene vacío, las intervenciones de agente y cliente.
