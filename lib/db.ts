@@ -176,6 +176,22 @@ export async function setLeadGestion(id: number, gestion: string): Promise<void>
   await query(`UPDATE ${LEADS_TABLE} SET gestion_estado = $2 WHERE id = $1`, [id, gestion]);
 }
 
+export type LeadNota = { id: number; texto: string; autor: string | null; created_at: Date };
+
+const NOTAS_TABLE = "eliasymunozabogados_lead_notas";
+
+export async function getLeadNotas(leadId: number): Promise<LeadNota[]> {
+  const { rows } = await query<LeadNota>(
+    `SELECT id, texto, autor, created_at FROM ${NOTAS_TABLE} WHERE lead_id = $1 ORDER BY created_at DESC, id DESC`,
+    [leadId]
+  );
+  return rows;
+}
+
+export async function addLeadNota(leadId: number, texto: string, autor: string): Promise<void> {
+  await query(`INSERT INTO ${NOTAS_TABLE} (lead_id, texto, autor) VALUES ($1, $2, $3)`, [leadId, texto, autor]);
+}
+
 export async function getLeadsKpis(): Promise<LeadKpis> {
   const { rows } = await query<{
     total: string;

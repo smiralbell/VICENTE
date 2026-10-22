@@ -1,7 +1,8 @@
-import type { Lead } from "@/lib/db";
+import { getLeadNotas, type Lead } from "@/lib/db";
 import { formatMadrid } from "@/lib/dateFormat";
 import { getCallState, getOriginPill, hasAppointment } from "@/lib/leadFilters";
 import GestionSelect from "./GestionSelect";
+import NotasForm from "./NotasForm";
 
 type Fallback = {
   name?: string | null;
@@ -18,7 +19,8 @@ type Props = {
 const dash = (v: string | null | undefined) => (v && v.trim() ? v : "–");
 
 // Panel de la derecha: datos del usuario, estados, botones de gestión y resumen.
-export default function LeadPanel({ lead, fallback, summaryLabel = "Resumen" }: Props) {
+export default async function LeadPanel({ lead, fallback, summaryLabel = "Resumen" }: Props) {
+  const notas = lead ? await getLeadNotas(lead.id) : [];
   const name = lead?.name || fallback?.name || null;
   const phone = lead?.phone || fallback?.phone || null;
   const email = lead?.email || fallback?.email || null;
@@ -78,6 +80,23 @@ export default function LeadPanel({ lead, fallback, summaryLabel = "Resumen" }: 
         </div>
       </section>
 
+      {lead && (
+        <section>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-paper-muted">Notas del equipo</h2>
+          <NotasForm leadId={lead.id} />
+          <ul className="mt-4 space-y-3">
+            {notas.length === 0 && <li className="text-xs text-paper-muted">Todavía no hay notas.</li>}
+            {notas.map((nota) => (
+              <li key={nota.id} className="rounded-xl border border-paper-border bg-paper-card px-3 py-2.5">
+                <p className="whitespace-pre-wrap text-sm text-paper-ink">{nota.texto}</p>
+                <p className="mt-1 text-[11px] text-paper-muted">
+                  {nota.autor ?? "Equipo"} · {formatMadrid(nota.created_at)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
