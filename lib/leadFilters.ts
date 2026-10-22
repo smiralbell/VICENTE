@@ -156,8 +156,7 @@ export function getOriginPill(source: string | null) {
   const value = (source ?? "").trim();
   if (!value) return { label: "—", className: "bg-paper-border text-paper-muted" };
   if (PHONE_SOURCE.test(value)) return { label: "Llamada", className: "bg-sky-100 text-sky-800 border border-sky-200" };
-  if (/^web chat$|chatbot|chat/i.test(value)) return { label: "Chatbot", className: "bg-emerald-100 text-emerald-800 border border-emerald-200" };
-  if (/derivado/i.test(value)) return { label: "Derivado", className: "bg-violet-100 text-violet-800 border border-violet-200" };
+  if (/^web chat$|chatbot|chat/i.test(value)) return { label: "Widget", className: "bg-emerald-100 text-emerald-800 border border-emerald-200" };
   if (/formulario/i.test(value)) return { label: "Formulario", className: "bg-amber-100 text-amber-800 border border-amber-200" };
   return { label: value, className: "bg-paper-border text-paper-muted" };
 }
