@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import Dropdown from "@/components/Dropdown";
 import { GESTION_FILTERS, LEAD_STATUS_FILTERS, MODALIDAD_FILTERS } from "@/lib/leadFilters";
+import EstadosLeyenda from "./EstadosLeyenda";
 
 type Props = {
   defaultValue?: string;
@@ -20,14 +21,7 @@ type Props = {
 const CONTROL =
   "h-11 rounded-xl border border-paper-border bg-paper-card text-sm text-paper-ink shadow-sm transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30";
 
-export default function LeadsToolbar({
-  defaultValue = "",
-  status = "",
-  gestion = "",
-  modalidad = "",
-  from = "",
-  to = "",
-}: Props) {
+export default function LeadsToolbar({ defaultValue = "", status = "", gestion = "", modalidad = "", from = "", to = "" }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [value, setValue] = useState(defaultValue);
@@ -63,17 +57,17 @@ export default function LeadsToolbar({
   };
 
   return (
-    <div className="flex w-full flex-col gap-2">
-      <form onSubmit={handleSubmit} role="search" aria-label="Buscar leads" className="flex w-full flex-wrap items-center gap-2">
-        <Dropdown label="Filtrar por llamada" value={status} options={LEAD_STATUS_FILTERS} onChange={(v) => update({ estado: v })} />
-        <Dropdown label="Filtrar por gestión" value={gestion} options={GESTION_FILTERS} onChange={(v) => update({ gestion: v })} />
-        <Dropdown label="Filtrar por modalidad" value={modalidad} options={MODALIDAD_FILTERS} onChange={(v) => update({ modalidad: v })} />
+    <div className="flex w-full items-center gap-2">
+      <form onSubmit={handleSubmit} role="search" aria-label="Buscar leads" className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1">
+        <Dropdown label="Filtrar por llamada" value={status} options={LEAD_STATUS_FILTERS} onChange={(v) => update({ estado: v })} className="shrink-0" />
+        <Dropdown label="Filtrar por gestión" value={gestion} options={GESTION_FILTERS} onChange={(v) => update({ gestion: v })} className="shrink-0" />
+        <Dropdown label="Filtrar por modalidad" value={modalidad} options={MODALIDAD_FILTERS} onChange={(v) => update({ modalidad: v })} className="shrink-0" />
 
-        <div className={`${CONTROL} flex items-center gap-1 px-2`}>
+        <div className={`${CONTROL} flex shrink-0 items-center gap-1 px-2`}>
           <span className="px-1 text-xs text-paper-muted">Creado</span>
-          <input type="date" aria-label="Desde" value={from} max={to || undefined} onChange={(e) => update({ desde: e.target.value })} className="h-full w-[120px] bg-transparent px-1 text-sm focus:outline-none" />
+          <input type="date" aria-label="Desde" value={from} max={to || undefined} onChange={(e) => update({ desde: e.target.value })} className="h-full w-[118px] bg-transparent px-1 text-sm focus:outline-none" />
           <span aria-hidden="true" className="text-paper-muted">–</span>
-          <input type="date" aria-label="Hasta" value={to} min={from || undefined} onChange={(e) => update({ hasta: e.target.value })} className="h-full w-[120px] bg-transparent px-1 text-sm focus:outline-none" />
+          <input type="date" aria-label="Hasta" value={to} min={from || undefined} onChange={(e) => update({ hasta: e.target.value })} className="h-full w-[118px] bg-transparent px-1 text-sm focus:outline-none" />
         </div>
 
         <input
@@ -82,7 +76,7 @@ export default function LeadsToolbar({
           onChange={(e) => setValue(e.target.value)}
           placeholder="Nombre, email o teléfono"
           aria-label="Texto de búsqueda"
-          className={`${CONTROL} min-w-[200px] flex-1 px-4 placeholder-paper-muted`}
+          className={`${CONTROL} min-w-[180px] flex-1 px-4 placeholder-paper-muted`}
         />
 
         <button
@@ -91,15 +85,13 @@ export default function LeadsToolbar({
         >
           Buscar
         </button>
-      </form>
-
-      {hasFilters && (
-        <div className="flex justify-end">
-          <button type="button" onClick={clearAll} className="text-xs font-medium text-brand hover:underline">
-            Quitar todos los filtros
+        {hasFilters && (
+          <button type="button" onClick={clearAll} className="h-11 shrink-0 rounded-xl px-3 text-xs font-medium text-brand hover:bg-paper">
+            Quitar filtros
           </button>
-        </div>
-      )}
+        )}
+      </form>
+      <EstadosLeyenda />
     </div>
   );
 }

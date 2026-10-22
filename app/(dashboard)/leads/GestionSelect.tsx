@@ -11,7 +11,7 @@ type Props = {
 };
 
 // Cambia el estado de gestión de un lead desde la tabla o la ficha.
-export default function GestionSelect({ leadId, value }: Props) {
+export default function GestionSelect({ leadId, value, compact = false }: Props & { compact?: boolean }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [current, setCurrent] = useState(value ?? "pendiente");
@@ -39,7 +39,8 @@ export default function GestionSelect({ leadId, value }: Props) {
         value={current}
         disabled={isPending}
         onChange={change}
-        options={GESTION_STATES.map((g) => ({ key: g.key, label: g.label, dot: g.dot }))}
+        compact={compact}
+        options={GESTION_STATES.map((g) => ({ key: g.key, label: g.label, className: g.className }))}
       />
     </div>
   );

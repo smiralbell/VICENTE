@@ -1,5 +1,4 @@
 import { getMessagesBySessionId, getLeadBySessionId } from "@/lib/db";
-import ConversationHeader from "./ConversationHeader";
 import ChatBubble from "./ChatBubble";
 import LeadPanel from "../../leads/LeadPanel";
 
@@ -21,11 +20,9 @@ export default async function ConversationDetailPage({ params }: Props) {
   return (
     <div className="flex h-full min-h-0 flex-1">
       <section
-        className="flex min-w-0 flex-1 flex-col bg-paper px-4 pt-4 sm:px-6 sm:pt-6 md:px-12 md:pt-12"
+        className="flex min-w-0 flex-1 flex-col bg-paper px-4 pt-4 sm:px-6 md:px-8 md:pt-4"
         aria-label="Conversación"
       >
-        <ConversationHeader lead={lead} sessionId={decodedId} />
-
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="w-full pt-10 pb-12">
             {messages.length === 0 ? (

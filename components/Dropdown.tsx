@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export type DropdownOption = { key: string; label: string; dot?: string };
+// className: clases de color de fondo (y texto) que se muestran como etiqueta.
+export type DropdownOption = { key: string; label: string; className?: string };
 
 type Props = {
   label: string;
@@ -11,11 +12,20 @@ type Props = {
   onChange: (key: string) => void;
   disabled?: boolean;
   className?: string;
+  compact?: boolean;
   align?: "left" | "right";
 };
 
-// Desplegable propio, con el mismo estilo en todo el dashboard.
-export default function Dropdown({ label, value, options, onChange, disabled, className = "", align = "left" }: Props) {
+function Chip({ label, className }: { label: string; className?: string }) {
+  return (
+    <span className={`inline-flex max-w-full items-center truncate rounded-full px-2.5 py-0.5 text-xs font-medium ${className || "text-paper-ink"}`}>
+      {label}
+    </span>
+  );
+}
+
+// Desplegable propio, con el mismo estilo en todo el dashboard. Los estados se ven como etiquetas de color.
+export default function Dropdown({ label, value, options, onChange, disabled, className = "", compact = false, align = "left" }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const current = options.find((o) => o.key === value) ?? options[0];
@@ -45,13 +55,12 @@ export default function Dropdown({ label, value, options, onChange, disabled, cl
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className="flex h-11 min-w-[11rem] items-center justify-between gap-3 rounded-xl border border-paper-border bg-paper-card px-3.5 text-left text-sm text-paper-ink shadow-sm transition-colors hover:border-brand/40 focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
+        className={`flex items-center justify-between gap-2 rounded-xl border border-paper-border bg-paper-card text-left text-sm text-paper-ink shadow-sm transition-colors hover:border-brand/40 focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60 ${
+          compact ? "h-8 px-2 text-xs" : "h-11 min-w-[10rem] px-3.5"
+        }`}
       >
-        <span className="flex min-w-0 items-center gap-2">
-          {current?.dot && <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${current.dot}`} />}
-          <span className="truncate">{current?.label}</span>
-        </span>
-        <svg aria-hidden="true" viewBox="0 0 20 20" className={`h-4 w-4 shrink-0 text-paper-muted transition-transform ${open ? "rotate-180" : ""}`}>
+        {current?.className ? <Chip label={current.label} className={current.className} /> : <span className="truncate">{current?.label}</span>}
+        <svg aria-hidden="true" viewBox="0 0 20 20" className={`h-3.5 w-3.5 shrink-0 text-paper-muted transition-transform ${open ? "rotate-180" : ""}`}>
           <path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
@@ -72,12 +81,11 @@ export default function Dropdown({ label, value, options, onChange, disabled, cl
                     setOpen(false);
                     onChange(o.key);
                   }}
-                  className={`flex w-full items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-paper ${
-                    selected ? "bg-brand-subtle font-medium text-paper-ink" : "text-paper-inkLight"
+                  className={`flex w-full items-center rounded-xl px-2 py-1.5 text-left text-sm transition-colors hover:bg-paper ${
+                    selected ? "bg-brand-subtle" : ""
                   }`}
                 >
-                  {o.dot && <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${o.dot}`} />}
-                  <span>{o.label}</span>
+                  {o.className ? <Chip label={o.label} className={o.className} /> : <span className="px-1 text-paper-inkLight">{o.label}</span>}
                 </button>
               </li>
             );

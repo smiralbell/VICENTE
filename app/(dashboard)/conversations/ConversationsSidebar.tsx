@@ -28,9 +28,9 @@ type SessionWithLeadAndPreview = {
 };
 
 const LEAD_FILTERS = [
-  { key: "", label: "Todas las conversaciones", dot: "" },
-  { key: "con_lead", label: "Con lead", dot: "bg-emerald-500" },
-  { key: "sin_lead", label: "Sin lead", dot: "bg-paper-border" },
+  { key: "", label: "Todas las conversaciones", className: "" },
+  { key: "con_lead", label: "Con lead", className: "bg-emerald-100 text-emerald-800 border border-emerald-200" },
+  { key: "sin_lead", label: "Sin lead", className: "bg-paper-border text-paper-muted" },
 ];
 
 function getInitial(name: string): string {

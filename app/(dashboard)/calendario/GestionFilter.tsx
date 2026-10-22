@@ -14,7 +14,7 @@ export default function GestionFilter({ mes, modo, current }: Props) {
       <Dropdown
         label="Filtrar citas por gestión"
         value={current}
-        options={GESTION_FILTERS.map((g) => ({ key: g.key, label: g.label, dot: g.dot }))}
+        options={GESTION_FILTERS.map((g) => ({ key: g.key, label: g.label, className: g.className }))}
         onChange={(key) => {
           const q = new URLSearchParams({ mes, modo });
           if (key) q.set("gestion", key);

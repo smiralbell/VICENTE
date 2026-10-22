@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSidebar } from "./SidebarContext";
 
 const NAV = [
@@ -16,7 +16,10 @@ const NAV = [
 export default function Sidebar() {
   const pathname = usePathname();
   const prevPathnameRef = useRef(pathname);
-  const { collapsed, toggle, width, offWorkOnly, systemPublished, toggleOffWorkOnly, toggleSystemPublished, mobileOpen, setMobileOpen, isMobile } = useSidebar();
+  const { offWorkOnly, systemPublished, toggleOffWorkOnly, toggleSystemPublished, mobileOpen, setMobileOpen, isMobile } = useSidebar();
+  // Escritorio: el menú está escondido y se despliega al pasar el cursor por encima.
+  const [hovered, setHovered] = useState(false);
+  const collapsed = !hovered;
 
   useEffect(() => {
     if (prevPathnameRef.current !== pathname) {
@@ -36,9 +39,11 @@ export default function Sidebar() {
         />
       )}
       <aside
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         className="fixed left-0 top-0 z-20 flex h-full flex-col bg-brand transition-all duration-300 ease-in-out md:translate-x-0"
         style={{
-          width: isMobile ? 280 : width,
+          width: isMobile || !collapsed ? 280 : 72,
           transform: isMobile && !mobileOpen ? "translateX(-100%)" : undefined,
         }}
       >
@@ -69,24 +74,6 @@ export default function Sidebar() {
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
-            )}
-            {!isMobile && (
-              <button
-                type="button"
-                onClick={toggle}
-                aria-label={collapsed ? "Mostrar menú" : "Ocultar menú"}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/80 hover:bg-white/15 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50"
-              >
-                {collapsed ? (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                  </svg>
-                ) : (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
-                  </svg>
-                )}
               </button>
             )}
           </div>

@@ -15,10 +15,10 @@ type TranscriptionItem = {
 };
 
 const PERIODOS = [
-  { key: "", label: "Todo el periodo", dot: "" },
-  { key: "hoy", label: "Hoy", dot: "bg-emerald-500" },
-  { key: "7", label: "Últimos 7 días", dot: "bg-sky-500" },
-  { key: "30", label: "Últimos 30 días", dot: "bg-violet-500" },
+  { key: "", label: "Todo el periodo", className: "" },
+  { key: "hoy", label: "Hoy", className: "bg-emerald-100 text-emerald-800 border border-emerald-200" },
+  { key: "7", label: "Últimos 7 días", className: "bg-sky-100 text-sky-800 border border-sky-200" },
+  { key: "30", label: "Últimos 30 días", className: "bg-violet-100 text-violet-800 border border-violet-200" },
 ];
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -92,9 +92,9 @@ export default function TranscriptionsSidebar() {
               label="Filtrar por contacto"
               value={contacto}
               options={[
-                { key: "", label: "Cualquier contacto", dot: "" },
-                { key: "telefono", label: "Con teléfono", dot: "bg-violet-500" },
-                { key: "email", label: "Con email", dot: "bg-sky-500" },
+                { key: "", label: "Cualquier contacto", className: "" },
+                { key: "telefono", label: "Con teléfono", className: "bg-violet-100 text-violet-800 border border-violet-200" },
+                { key: "email", label: "Con email", className: "bg-sky-100 text-sky-800 border border-sky-200" },
               ]}
               onChange={setContacto}
             />

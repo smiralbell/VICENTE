@@ -3,7 +3,6 @@ import { getLeadsPaginated, getLeadsKpis, isLeadSortField, findTranscriptionIdFo
 import { isFormularioSource, isWebChatSource } from "@/lib/leadNavigation";
 import { isDateFilter, isGestionFilter, isLeadStatusFilter, isModalidadFilter, type LeadFilters } from "@/lib/leadFilters";
 import LeadsKpis from "./LeadsKpis";
-import EstadosLeyenda from "./EstadosLeyenda";
 import LeadsTable from "./LeadsTable";
 import LeadsToolbar from "./LeadsToolbar";
 
@@ -75,9 +74,6 @@ export default async function LeadsPage({ searchParams }: Props) {
     <div className="w-full">
       <LeadsKpis kpis={kpis} />
 
-      <div className="mb-3 flex justify-end">
-        <EstadosLeyenda />
-      </div>
 
       <Suspense
         fallback={

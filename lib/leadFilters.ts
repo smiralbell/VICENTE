@@ -88,20 +88,20 @@ export function getGestionState(key: string | null) {
 }
 
 export const LEAD_STATUS_FILTERS = [
-  { key: "", label: "Todas las llamadas", dot: "" },
-  ...Object.entries(CALL_STATES).map(([key, s]) => ({ key, label: s.label, dot: s.dot })),
+  { key: "", label: "Todas las llamadas", className: "" },
+  ...Object.entries(CALL_STATES).map(([key, s]) => ({ key, label: s.label, className: s.className })),
 ];
 
 export const GESTION_FILTERS = [
-  { key: "", label: "Toda la gestión", dot: "" },
-  ...GESTION_STATES.map((g) => ({ key: g.key, label: g.label, dot: g.dot })),
+  { key: "", label: "Toda la gestión", className: "" },
+  ...GESTION_STATES.map((g) => ({ key: g.key, label: g.label, className: g.className })),
 ];
 
 export const MODALIDAD_FILTERS = [
-  { key: "", label: "Toda modalidad", dot: "" },
-  { key: "presencial", label: "Presencial", dot: "bg-violet-400" },
-  { key: "videoconferencia", label: "Meet / videoconferencia", dot: "bg-sky-400" },
-  { key: "sin_reunion", label: "Sin cita", dot: "bg-paper-border" },
+  { key: "", label: "Toda modalidad", className: "" },
+  { key: "presencial", label: "Presencial", className: "bg-violet-100 text-violet-800 border border-violet-200" },
+  { key: "videoconferencia", label: "Meet / videoconferencia", className: "bg-sky-100 text-sky-800 border border-sky-200" },
+  { key: "sin_reunion", label: "Sin cita", className: "bg-paper-border text-paper-muted" },
 ];
 
 export function isLeadStatusFilter(value: string): boolean {

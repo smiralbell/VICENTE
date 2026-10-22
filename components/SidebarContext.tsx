@@ -169,7 +169,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     }
   }, [systemPublished, applySettings]);
 
-  const width = isMobile ? 0 : collapsed ? 72 : 280;
+  const width = isMobile ? 0 : 72;
 
   return (
     <SidebarContext.Provider
