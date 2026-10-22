@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
+import Dropdown from "@/components/Dropdown";
 import { GESTION_FILTERS, LEAD_STATUS_FILTERS, MODALIDAD_FILTERS } from "@/lib/leadFilters";
 
 type Props = {
@@ -18,44 +19,6 @@ type Props = {
 
 const CONTROL =
   "h-11 rounded-xl border border-paper-border bg-paper-card text-sm text-paper-ink shadow-sm transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30";
-
-type Option = { key: string; label: string };
-
-function SelectBox({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: Option[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="relative">
-      <select
-        aria-label={label}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`${CONTROL} appearance-none py-0 pl-4 pr-10`}
-      >
-        {options.map((o) => (
-          <option key={o.key} value={o.key}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 20 20"
-        className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-paper-muted"
-      >
-        <path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </div>
-  );
-}
 
 export default function LeadsToolbar({
   defaultValue = "",
@@ -102,9 +65,9 @@ export default function LeadsToolbar({
   return (
     <div className="flex w-full flex-col gap-2">
       <form onSubmit={handleSubmit} role="search" aria-label="Buscar leads" className="flex w-full flex-wrap items-center gap-2">
-        <SelectBox label="Filtrar por llamada" value={status} options={LEAD_STATUS_FILTERS} onChange={(v) => update({ estado: v })} />
-        <SelectBox label="Filtrar por gestión" value={gestion} options={GESTION_FILTERS} onChange={(v) => update({ gestion: v })} />
-        <SelectBox label="Filtrar por modalidad" value={modalidad} options={MODALIDAD_FILTERS} onChange={(v) => update({ modalidad: v })} />
+        <Dropdown label="Filtrar por llamada" value={status} options={LEAD_STATUS_FILTERS} onChange={(v) => update({ estado: v })} />
+        <Dropdown label="Filtrar por gestión" value={gestion} options={GESTION_FILTERS} onChange={(v) => update({ gestion: v })} />
+        <Dropdown label="Filtrar por modalidad" value={modalidad} options={MODALIDAD_FILTERS} onChange={(v) => update({ modalidad: v })} />
 
         <div className={`${CONTROL} flex items-center gap-1 px-2`}>
           <span className="px-1 text-xs text-paper-muted">Creado</span>

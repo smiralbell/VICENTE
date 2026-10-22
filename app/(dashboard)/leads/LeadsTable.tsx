@@ -57,6 +57,10 @@ const COLUMNS: { key: LeadSortField | null; label: string }[] = [
   { key: "created_at", label: "Creado" },
 ];
 
+function horarioOf(lead: LeadWithNavigation) {
+  return lead.cita_inicio ? formatMadrid(lead.cita_inicio) : formatDate(lead.fecha);
+}
+
 function getModalidadPill(modalidad: string | null) {
   if (!modalidad) {
     return { label: "—", className: "bg-paper-border text-paper-muted" };
@@ -202,7 +206,7 @@ export default function LeadsTable({
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-paper-muted">
               {lead.source && <span>{lead.source}</span>}
-              <span>Reunión: {formatDate(lead.fecha)}</span>
+              <span>Reunión: {horarioOf(lead)}</span>
               {(() => {
                 const pill = getModalidadPill(lead.modalidad);
                 return (
@@ -313,7 +317,7 @@ export default function LeadsTable({
                 {lead.summary ?? "—"}
               </td>
               <td className="whitespace-nowrap py-2.5 px-2 text-[11px] text-paper-muted lg:py-3 lg:px-3 lg:text-xs">
-                {formatDate(lead.fecha)}
+                {horarioOf(lead)}
               </td>
               <td className="py-2.5 px-2 text-xs text-paper-muted lg:py-3 lg:px-3 lg:text-sm">
                 {(() => {

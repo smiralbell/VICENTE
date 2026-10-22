@@ -214,12 +214,16 @@ export type AppointmentRow = {
 };
 
 // Citas dentro de un rango. modo: "presencial" | "videoconferencia" | "" (ambas).
-export async function getAppointments(from: Date, to: Date, modo: string): Promise<AppointmentRow[]> {
+export async function getAppointments(from: Date, to: Date, modo: string, gestion = ""): Promise<AppointmentRow[]> {
   const params: string[] = [from.toISOString(), to.toISOString()];
   let modeClause = "";
   if (modo === "presencial" || modo === "videoconferencia") {
     params.push(modo);
-    modeClause = ` AND LOWER(TRIM(modalidad)) = $3`;
+    modeClause += ` AND LOWER(TRIM(modalidad)) = $${params.length}`;
+  }
+  if (gestion) {
+    params.push(gestion);
+    modeClause += ` AND gestion_estado = $${params.length}`;
   }
   const { rows } = await query<AppointmentRow>(
     `SELECT id, name, phone, modalidad, gestion_estado, cita_inicio, summary FROM ${LEADS_TABLE}
