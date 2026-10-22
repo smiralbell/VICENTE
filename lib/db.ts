@@ -502,7 +502,21 @@ export async function getTranscriptions(
     paramIndex++;
   }
 
-  let queryText = `SELECT id, transcription, phone, name, mail, fecha FROM ${TRANSCRIPTIONS_TABLE}`;
+  // Nombre y correo: los de la transcripción, o si faltan, los del lead del formulario con ese teléfono.
+  const withLead = `SELECT * FROM (
+      SELECT t.id, t.transcription, t.phone,
+             COALESCE(NULLIF(t.name, ''), l.name) AS name,
+             COALESCE(NULLIF(t.mail, ''), l.email) AS mail,
+             t.fecha
+      FROM ${TRANSCRIPTIONS_TABLE} t
+      LEFT JOIN LATERAL (
+        SELECT name, email FROM ${LEADS_TABLE}
+        WHERE phone = t.phone
+        ORDER BY created_at DESC LIMIT 1
+      ) l ON TRUE
+    ) x`;
+
+  let queryText = withLead;
   if (conditions.length) {
     queryText += ` WHERE ${conditions.join(" AND ")}`;
   }
@@ -516,7 +530,18 @@ export async function getTranscriptionById(
   id: number
 ): Promise<Transcription | null> {
   const { rows } = await query<Transcription>(
-    `SELECT id, transcription, phone, name, mail, fecha FROM ${TRANSCRIPTIONS_TABLE} WHERE id = $1`,
+    `SELECT * FROM (
+        SELECT t.id, t.transcription, t.phone,
+               COALESCE(NULLIF(t.name, ''), l.name) AS name,
+               COALESCE(NULLIF(t.mail, ''), l.email) AS mail,
+               t.fecha
+        FROM ${TRANSCRIPTIONS_TABLE} t
+        LEFT JOIN LATERAL (
+          SELECT name, email FROM ${LEADS_TABLE}
+          WHERE phone = t.phone
+          ORDER BY created_at DESC LIMIT 1
+        ) l ON TRUE
+      ) x WHERE x.id = $1`,
     [id]
   );
   return rows[0] ?? null;
