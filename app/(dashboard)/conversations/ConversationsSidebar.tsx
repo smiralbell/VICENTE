@@ -64,17 +64,6 @@ export default function ConversationsSidebar() {
     fetchSessions();
   }, [fetchSessions]);
 
-  const kpis = useMemo(() => {
-    const withLead = sessions.filter((s) => s.lead);
-    return {
-      total: sessions.length,
-      conLead: withLead.length,
-      sinLead: sessions.length - withLead.length,
-      pendientes: withLead.filter((s) => s.lead?.gestion_estado === "pendiente").length,
-      citas: withLead.filter((s) => s.lead?.gestion_estado === "cita_pendiente").length,
-    };
-  }, [sessions]);
-
   const visible = useMemo(
     () =>
       sessions.filter((s) => {
@@ -86,26 +75,10 @@ export default function ConversationsSidebar() {
     [sessions, leadFilter, gestionFilter]
   );
 
-  const cards = [
-    { label: "Conversaciones", value: kpis.total, tone: "text-paper-ink" },
-    { label: "Con lead", value: kpis.conLead, tone: "text-emerald-700" },
-    { label: "Pendientes", value: kpis.pendientes, tone: "text-slate-700" },
-    { label: "Citas por confirmar", value: kpis.citas, tone: "text-sky-700" },
-  ];
-
   return (
     <div className="flex h-full min-h-0 w-full shrink-0 flex-col border-r border-paper-border md:w-[320px]">
       <div className="flex min-h-0 flex-1 flex-col pt-4 px-4 sm:pt-6 sm:px-5 md:pt-8 md:px-6">
         <div className="shrink-0 space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            {cards.map((c) => (
-              <div key={c.label} className="rounded-xl border border-paper-border bg-paper-card px-3 py-2 shadow-sm">
-                <p className="text-[11px] text-paper-muted">{c.label}</p>
-                <p className={`text-lg font-semibold ${c.tone}`}>{c.value}</p>
-              </div>
-            ))}
-          </div>
-
           <form method="get" action="/conversations" className="flex gap-2" role="search" aria-label="Buscar conversaciones">
             <input
               type="search"

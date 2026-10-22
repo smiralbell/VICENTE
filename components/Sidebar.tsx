@@ -151,7 +151,7 @@ export default function Sidebar() {
                 onClick={() => {
                   void toggleSystemPublished();
                 }}
-                className={`relative flex h-9 w-24 shrink-0 items-center rounded-full px-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 ${
+                className={`relative flex ${collapsed && !isMobile ? "h-7 w-11" : "h-9 w-24"} shrink-0 items-center rounded-full px-1 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 ${
                   systemPublished ? "bg-emerald-500/90" : "bg-red-500/80"
                 }`}
                 style={{ justifyContent: systemPublished ? "flex-end" : "flex-start" }}
@@ -201,7 +201,7 @@ export default function Sidebar() {
               onClick={() => {
                 void toggleOffWorkOnly();
               }}
-              className={`relative flex h-9 w-24 shrink-0 items-center rounded-full px-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 ${
+              className={`relative flex ${collapsed && !isMobile ? "h-7 w-11" : "h-9 w-24"} shrink-0 items-center rounded-full px-1 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 ${
                 offWorkOnly ? "bg-emerald-500/90" : "bg-white/25"
               }`}
               style={{ justifyContent: offWorkOnly ? "flex-end" : "flex-start" }}

@@ -60,17 +60,6 @@ export default function TranscriptionsSidebar() {
     fetchItems();
   }, [fetchItems]);
 
-  const kpis = useMemo(() => {
-    const semana = items.filter((t) => withinPeriod(t.fecha, "7")).length;
-    const hoy = items.filter((t) => withinPeriod(t.fecha, "hoy")).length;
-    return {
-      total: items.length,
-      semana,
-      hoy,
-      conTelefono: items.filter((t) => t.phone).length,
-    };
-  }, [items]);
-
   const visible = useMemo(
     () =>
       items.filter((t) => {
@@ -82,26 +71,10 @@ export default function TranscriptionsSidebar() {
     [items, periodo, contacto]
   );
 
-  const cards = [
-    { label: "Transcripciones", value: kpis.total, tone: "text-paper-ink" },
-    { label: "Hoy", value: kpis.hoy, tone: "text-emerald-700" },
-    { label: "Últimos 7 días", value: kpis.semana, tone: "text-sky-700" },
-    { label: "Con teléfono", value: kpis.conTelefono, tone: "text-violet-700" },
-  ];
-
   return (
     <div className="flex h-full min-h-0 w-full shrink-0 flex-col border-r border-paper-border md:w-[320px]">
       <div className="flex min-h-0 flex-1 flex-col pt-4 px-4 sm:pt-6 sm:px-5 md:pt-8 md:px-6">
         <div className="shrink-0 space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            {cards.map((c) => (
-              <div key={c.label} className="rounded-xl border border-paper-border bg-paper-card px-3 py-2 shadow-sm">
-                <p className="text-[11px] text-paper-muted">{c.label}</p>
-                <p className={`text-lg font-semibold ${c.tone}`}>{c.value}</p>
-              </div>
-            ))}
-          </div>
-
           <form method="get" action="/transcriptions" className="flex gap-2" role="search" aria-label="Buscar transcripciones">
             <input
               type="search"
