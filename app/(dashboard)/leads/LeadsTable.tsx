@@ -7,7 +7,7 @@ import { useCallback, useState } from "react";
 import type { LeadSortField } from "@/lib/db";
 import type { LeadWithNavigation } from "@/lib/leadNavigation";
 import { getLeadNavigationPath } from "@/lib/leadNavigation";
-import { getCallState, hasAppointment, type LeadFilters } from "@/lib/leadFilters";
+import { getCallState, getOriginPill, hasAppointment, type LeadFilters } from "@/lib/leadFilters";
 import GestionSelect from "./GestionSelect";
 import { formatMadrid } from "@/lib/dateFormat";
 
@@ -47,6 +47,7 @@ function formatDate(d: Date | string | null | undefined) {
 const COLUMNS: { key: LeadSortField | null; label: string }[] = [
   { key: "name", label: "Nombre" },
   { key: null, label: "Teléfono" },
+  { key: null, label: "Origen" },
   { key: null, label: "Llamada" },
   { key: null, label: "Gestión" },
   { key: null, label: "Horario reunión" },
@@ -202,7 +203,14 @@ export default function LeadsTable({
               </div>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-paper-muted">
-              {lead.source && <span>{lead.source}</span>}
+              {(() => {
+                const origin = getOriginPill(lead.source);
+                return (
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${origin.className}`}>
+                    {origin.label}
+                  </span>
+                );
+              })()}
               <span>Reunión: {horarioOf(lead)}</span>
               {(() => {
                 const pill = getModalidadPill(lead.modalidad);
@@ -284,6 +292,16 @@ export default function LeadsTable({
               </td>
               <td className="truncate py-2.5 px-2 text-xs text-paper-inkLight lg:py-3 lg:px-3 lg:text-sm">
                 {lead.phone ?? "—"}
+              </td>
+              <td className="py-2.5 px-2 lg:py-3 lg:px-3">
+                {(() => {
+                  const origin = getOriginPill(lead.source);
+                  return (
+                    <span className={`inline-flex max-w-full items-center truncate rounded-full px-2 py-0.5 text-[11px] font-medium lg:px-2.5 lg:py-1 lg:text-xs ${origin.className}`}>
+                      {origin.label}
+                    </span>
+                  );
+                })()}
               </td>
               <td className="py-2.5 px-2 text-xs text-paper-muted lg:py-3 lg:px-3 lg:text-sm">
                 {(() => {

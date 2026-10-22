@@ -1,6 +1,6 @@
 import type { Lead } from "@/lib/db";
 import { formatMadrid } from "@/lib/dateFormat";
-import { getCallState, getStatusPill, hasAppointment } from "@/lib/leadFilters";
+import { getCallState, getOriginPill, getStatusPill, hasAppointment } from "@/lib/leadFilters";
 import GestionSelect from "./GestionSelect";
 
 type Fallback = {
@@ -28,7 +28,7 @@ export default function LeadPanel({ lead, fallback, summaryLabel = "Resumen" }: 
     ["Nombre", dash(name)],
     ["Teléfono", dash(phone)],
     ["Email", dash(email)],
-    ["Origen", dash(lead?.source)],
+    ["Origen", lead ? getOriginPill(lead.source).label : "–"],
     ["Creado", lead ? formatMadrid(lead.created_at) : "–"],
     ["Modalidad", dash(lead?.modalidad)],
     ["Cita", lead && hasAppointment(lead) ? formatMadrid(lead.cita_inicio ?? lead.fecha) : "Sin cita"],
