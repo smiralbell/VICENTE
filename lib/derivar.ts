@@ -92,7 +92,9 @@ function renderDerivarEmail(payload: DerivarPayload, lawyer: Lawyer | null): str
 
 // Derivación a un abogado interno: guarda el lead y envía el resumen por correo.
 export async function handleDerivar(payload: DerivarPayload): Promise<void> {
-  const sessionId = payload.sessionId || payload.clientPhone || "";
+  // Un valor sin rellenar del agente de voz ("{{sessionId}}") no sirve como identificador: se usa el teléfono.
+  const givenSession = payload.sessionId && !/^\{\{.*\}\}$/.test(payload.sessionId.trim()) ? payload.sessionId : "";
+  const sessionId = givenSession || payload.clientPhone || "";
 
   await query(
     `INSERT INTO ${LEADS_TABLE} (session_id, name, phone, email, summary, source, status, gestion_estado)
