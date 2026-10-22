@@ -77,10 +77,11 @@ export function isLeadSortField(s: string): s is LeadSortField {
 
 export type LeadKpis = {
   total: number;
-  pending: number;
-  withMeeting: number;
-  presencial: number;
-  noPresencial: number;
+  sinLlamar: number;
+  pendientesGestion: number;
+  citasPendientes: number;
+  citasConfirmadas: number;
+  derivados: number;
 };
 
 export async function getLeadsPaginated(
@@ -124,10 +125,14 @@ export async function getLeadsPaginated(
     paramIndex++;
   }
 
-  if (filters.modalidad === "presencial") {
-    conditions.push(`LOWER(TRIM(modalidad)) = 'presencial'`);
-  } else if (filters.modalidad === "no_presencial") {
-    conditions.push(`NULLIF(TRIM(modalidad), '') IS NOT NULL AND LOWER(TRIM(modalidad)) <> 'presencial'`);
+  if (filters.gestion) {
+    conditions.push(`gestion_estado = $${paramIndex}`);
+    params.push(filters.gestion);
+    paramIndex++;
+  }
+
+  if (filters.modalidad === "presencial" || filters.modalidad === "videoconferencia") {
+    conditions.push(`LOWER(TRIM(modalidad)) = '${filters.modalidad}'`);
   } else if (filters.modalidad === "sin_reunion") {
     conditions.push(`NULLIF(TRIM(modalidad), '') IS NULL`);
   }
@@ -172,27 +177,57 @@ export async function setLeadGestion(id: number, gestion: string): Promise<void>
 export async function getLeadsKpis(): Promise<LeadKpis> {
   const { rows } = await query<{
     total: string;
-    pending: string;
-    with_meeting: string;
-    presencial: string;
-    no_presencial: string;
+    sin_llamar: string;
+    pendientes_gestion: string;
+    citas_pendientes: string;
+    citas_confirmadas: string;
+    derivados: string;
   }>(
     `SELECT
       COUNT(*)::text AS total,
-      COUNT(*) FILTER (WHERE status = 'pending_contact')::text AS pending,
-      COUNT(*) FILTER (WHERE NULLIF(TRIM(modalidad), '') IS NOT NULL)::text AS with_meeting,
-      COUNT(*) FILTER (WHERE LOWER(TRIM(modalidad)) = 'presencial')::text AS presencial,
-      COUNT(*) FILTER (WHERE NULLIF(TRIM(modalidad), '') IS NOT NULL AND LOWER(TRIM(modalidad)) <> 'presencial')::text AS no_presencial
+      COUNT(*) FILTER (WHERE status = 'pending_contact')::text AS sin_llamar,
+      COUNT(*) FILTER (WHERE gestion_estado = 'pendiente')::text AS pendientes_gestion,
+      COUNT(*) FILTER (WHERE gestion_estado = 'cita_pendiente')::text AS citas_pendientes,
+      COUNT(*) FILTER (WHERE gestion_estado = 'cita_confirmada')::text AS citas_confirmadas,
+      COUNT(*) FILTER (WHERE gestion_estado = 'derivado')::text AS derivados
     FROM ${LEADS_TABLE}`
   );
   const row = rows[0];
   return {
     total: parseInt(row?.total ?? "0", 10),
-    pending: parseInt(row?.pending ?? "0", 10),
-    withMeeting: parseInt(row?.with_meeting ?? "0", 10),
-    presencial: parseInt(row?.presencial ?? "0", 10),
-    noPresencial: parseInt(row?.no_presencial ?? "0", 10),
+    sinLlamar: parseInt(row?.sin_llamar ?? "0", 10),
+    pendientesGestion: parseInt(row?.pendientes_gestion ?? "0", 10),
+    citasPendientes: parseInt(row?.citas_pendientes ?? "0", 10),
+    citasConfirmadas: parseInt(row?.citas_confirmadas ?? "0", 10),
+    derivados: parseInt(row?.derivados ?? "0", 10),
   };
+}
+
+export type AppointmentRow = {
+  id: number;
+  name: string | null;
+  phone: string | null;
+  modalidad: string | null;
+  gestion_estado: string | null;
+  cita_inicio: Date;
+  summary: string | null;
+};
+
+// Citas dentro de un rango. modo: "presencial" | "videoconferencia" | "" (ambas).
+export async function getAppointments(from: Date, to: Date, modo: string): Promise<AppointmentRow[]> {
+  const params: string[] = [from.toISOString(), to.toISOString()];
+  let modeClause = "";
+  if (modo === "presencial" || modo === "videoconferencia") {
+    params.push(modo);
+    modeClause = ` AND LOWER(TRIM(modalidad)) = $3`;
+  }
+  const { rows } = await query<AppointmentRow>(
+    `SELECT id, name, phone, modalidad, gestion_estado, cita_inicio, summary FROM ${LEADS_TABLE}
+     WHERE cita_inicio >= $1 AND cita_inicio < $2${modeClause}
+     ORDER BY cita_inicio ASC`,
+    params
+  );
+  return rows;
 }
 
 export async function getConversationSessions(

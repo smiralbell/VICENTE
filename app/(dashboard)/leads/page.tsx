@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { getLeadsPaginated, getLeadsKpis, isLeadSortField, findTranscriptionIdForLead, findSessionIdForLead } from "@/lib/db";
 import { isFormularioSource, isWebChatSource } from "@/lib/leadNavigation";
-import { isDateFilter, isLeadStatusFilter, isModalidadFilter, type LeadFilters } from "@/lib/leadFilters";
+import { isDateFilter, isGestionFilter, isLeadStatusFilter, isModalidadFilter, type LeadFilters } from "@/lib/leadFilters";
 import LeadsKpis from "./LeadsKpis";
 import EstadosLeyenda from "./EstadosLeyenda";
 import LeadsTable from "./LeadsTable";
@@ -20,6 +20,7 @@ type Props = {
     sort?: string;
     estado?: string;
     modalidad?: string;
+    gestion?: string;
     desde?: string;
     hasta?: string;
   }>;
@@ -34,6 +35,7 @@ export default async function LeadsPage({ searchParams }: Props) {
 
   const filters: LeadFilters = {
     status: isLeadStatusFilter(params.estado ?? "") ? params.estado : "",
+    gestion: isGestionFilter(params.gestion ?? "") ? params.gestion : "",
     modalidad: isModalidadFilter(params.modalidad ?? "") ? params.modalidad : "",
     from: isDateFilter(params.desde ?? "") ? params.desde : "",
     to: isDateFilter(params.hasta ?? "") ? params.hasta : "",
@@ -86,6 +88,7 @@ export default async function LeadsPage({ searchParams }: Props) {
           <LeadsToolbar
             defaultValue={search}
             status={filters.status}
+            gestion={filters.gestion}
             modalidad={filters.modalidad}
             from={filters.from}
             to={filters.to}
@@ -152,6 +155,7 @@ function buildPageUrl(
   if (sortField !== "created_at") params.set("sort", sortField);
   if (order !== "desc") params.set("order", order);
   if (filters.status) params.set("estado", filters.status);
+  if (filters.gestion) params.set("gestion", filters.gestion);
   if (filters.modalidad) params.set("modalidad", filters.modalidad);
   if (filters.from) params.set("desde", filters.from);
   if (filters.to) params.set("hasta", filters.to);

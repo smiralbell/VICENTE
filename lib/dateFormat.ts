@@ -33,3 +33,27 @@ export function parseMadridLocal(text: string | null | undefined): Date | null {
   const offset = madridAsUtc - Math.floor(guess.getTime() / 60000) * 60000;
   return new Date(wall - offset);
 }
+
+const DAY_KEY_FORMAT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Madrid",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const TIME_FORMAT = new Intl.DateTimeFormat("es-ES", {
+  timeZone: "Europe/Madrid",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+// Clave de día "YYYY-MM-DD" en hora de Madrid.
+export function madridDayKey(date: Date): string {
+  return DAY_KEY_FORMAT.format(date);
+}
+
+// Hora "HH:MM" en hora de Madrid.
+export function madridTime(date: Date): string {
+  return TIME_FORMAT.format(date);
+}

@@ -1,5 +1,6 @@
 export type LeadFilters = {
   status?: string;
+  gestion?: string;
   modalidad?: string;
   from?: string;
   to?: string;
@@ -85,15 +86,24 @@ export const LEAD_STATUS_FILTERS = [
   { key: "retry_pending", label: "Reintento pendiente" },
 ];
 
+export const GESTION_FILTERS = [
+  { key: "", label: "Toda la gestión" },
+  ...GESTION_STATES.map((g) => ({ key: g.key, label: g.label })),
+];
+
 export const MODALIDAD_FILTERS = [
-  { key: "", label: "Todas las modalidades" },
+  { key: "", label: "Toda modalidad" },
   { key: "presencial", label: "Presencial" },
-  { key: "no_presencial", label: "No presencial" },
-  { key: "sin_reunion", label: "Sin reunión" },
+  { key: "videoconferencia", label: "Meet / videoconferencia" },
+  { key: "sin_reunion", label: "Sin cita" },
 ];
 
 export function isLeadStatusFilter(value: string): boolean {
   return LEAD_STATUS_FILTERS.some((f) => f.key === value);
+}
+
+export function isGestionFilter(value: string): boolean {
+  return GESTION_FILTERS.some((f) => f.key === value);
 }
 
 export function isModalidadFilter(value: string): boolean {

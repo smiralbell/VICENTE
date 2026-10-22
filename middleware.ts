@@ -49,6 +49,8 @@ export const config = {
     "/api/transcriptions",
     "/tickets",
     "/tickets/:path*",
+    "/calendario",
+    "/calendario/:path*",
     "/api/tickets",
     "/api/tickets/:path*",
     "/api/settings",
