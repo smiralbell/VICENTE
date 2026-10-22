@@ -22,17 +22,13 @@ export function isWebChatSource(source: string | null): boolean {
 }
 
 export function getLeadNavigationPath(lead: LeadWithNavigation): string {
-  if (isFormularioSource(lead.source)) {
+  // Formulario y llamadas: se abre su transcripción, igual que en el listado de transcripciones.
+  if (isFormularioSource(lead.source) || isPhoneSource(lead.source)) {
     if (lead.transcriptionId) {
       return `/transcriptions/${lead.transcriptionId}`;
     }
     const q = lead.phone?.trim() || lead.email?.trim() || lead.name?.trim();
     if (q) return `/transcriptions?q=${encodeURIComponent(q)}`;
-    return `/leads/${lead.id}`;
-  }
-
-  if (isPhoneSource(lead.source)) {
-    if (lead.transcriptionId) return `/transcriptions/${lead.transcriptionId}`;
     return `/leads/${lead.id}`;
   }
 
