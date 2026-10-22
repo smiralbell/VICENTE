@@ -46,9 +46,7 @@ function formatDate(d: Date | string | null | undefined) {
 
 const COLUMNS: { key: LeadSortField | null; label: string }[] = [
   { key: "name", label: "Nombre" },
-  { key: "email", label: "Email" },
   { key: null, label: "Teléfono" },
-  { key: "source", label: "Fuente" },
   { key: null, label: "Llamada" },
   { key: null, label: "Gestión" },
   { key: null, label: "Resumen" },
@@ -286,13 +284,7 @@ export default function LeadsTable({
                 {lead.name}
               </td>
               <td className="truncate py-2.5 px-2 text-xs text-paper-inkLight lg:py-3 lg:px-3 lg:text-sm">
-                {lead.email}
-              </td>
-              <td className="truncate py-2.5 px-2 text-xs text-paper-inkLight lg:py-3 lg:px-3 lg:text-sm">
                 {lead.phone ?? "—"}
-              </td>
-              <td className="truncate py-2.5 px-2 text-xs text-paper-muted lg:py-3 lg:px-3 lg:text-sm">
-                {lead.source ?? "—"}
               </td>
               <td className="py-2.5 px-2 text-xs text-paper-muted lg:py-3 lg:px-3 lg:text-sm">
                 {(() => {

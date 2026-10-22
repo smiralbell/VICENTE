@@ -26,7 +26,9 @@ export default function ConversationsLayout({ children }: Props) {
 
   return (
     <div className="-mx-4 -my-6 flex h-[calc(100vh-8rem)] w-full shrink-0 flex-col overflow-hidden sm:-mx-6 md:-mx-10 md:-my-8 md:h-screen lg:-mx-14">
-      <ConversationsKpiBar />
+      <Suspense fallback={null}>
+        <ConversationsKpiBar />
+      </Suspense>
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className={`h-full shrink-0 flex-col overflow-hidden md:w-[320px] ${showSidebarMobile ? "flex w-full" : "hidden md:flex"}`}>
           <Suspense fallback={<SidebarFallback />}>

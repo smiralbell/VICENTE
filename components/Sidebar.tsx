@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useSidebar } from "./SidebarContext";
 
 const NAV = [
@@ -16,9 +16,8 @@ const NAV = [
 export default function Sidebar() {
   const pathname = usePathname();
   const prevPathnameRef = useRef(pathname);
-  const { offWorkOnly, systemPublished, toggleOffWorkOnly, toggleSystemPublished, mobileOpen, setMobileOpen, isMobile } = useSidebar();
+  const { offWorkOnly, systemPublished, toggleOffWorkOnly, toggleSystemPublished, mobileOpen, setMobileOpen, isMobile, width, hovered, setHovered } = useSidebar();
   // Escritorio: el menú está escondido y se despliega al pasar el cursor por encima.
-  const [hovered, setHovered] = useState(false);
   const collapsed = !hovered;
 
   useEffect(() => {
@@ -43,7 +42,7 @@ export default function Sidebar() {
         onMouseLeave={() => setHovered(false)}
         className="fixed left-0 top-0 z-20 flex h-full flex-col bg-brand transition-all duration-300 ease-in-out md:translate-x-0"
         style={{
-          width: isMobile || !collapsed ? 280 : 72,
+          width: isMobile ? 280 : width,
           transform: isMobile && !mobileOpen ? "translateX(-100%)" : undefined,
         }}
       >

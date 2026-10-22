@@ -16,6 +16,8 @@ type Context = {
   collapsed: boolean;
   toggle: () => void;
   width: number;
+  hovered: boolean;
+  setHovered: (value: boolean) => void;
   offWorkOnly: boolean;
   systemPublished: boolean;
   settingsLoaded: boolean;
@@ -44,6 +46,7 @@ function settingsFingerprint(settings: DashboardSettingsResponse): string {
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const [offWorkOnly, setOffWorkOnly] = useState(false);
   const [systemPublished, setSystemPublished] = useState(true);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
@@ -169,7 +172,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     }
   }, [systemPublished, applySettings]);
 
-  const width = isMobile ? 0 : 72;
+  const width = isMobile ? 0 : hovered ? 280 : 72;
 
   return (
     <SidebarContext.Provider
@@ -177,6 +180,8 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
         collapsed,
         toggle,
         width,
+        hovered,
+        setHovered,
         offWorkOnly,
         systemPublished,
         settingsLoaded,
