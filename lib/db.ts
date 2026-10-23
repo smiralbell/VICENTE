@@ -21,6 +21,28 @@ export async function query<T = unknown>(
   }
 }
 
+// Ejecuta varias consultas en una transacción: si una falla, se deshacen todas.
+export async function transaction<T>(
+  fn: (run: typeof query) => Promise<T>
+): Promise<T> {
+  const client = await pool.connect();
+  const run: typeof query = async (text, params) => {
+    const result = await client.query(text, params);
+    return { rows: result.rows, rowCount: result.rowCount };
+  };
+  try {
+    await client.query("BEGIN");
+    const value = await fn(run);
+    await client.query("COMMIT");
+    return value;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export type Lead = {
   id: number;
   created_at: Date;

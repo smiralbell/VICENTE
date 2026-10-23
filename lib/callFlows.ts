@@ -1,5 +1,5 @@
 import { reportIncident } from "./incidents";
-import { query } from "./db";
+import { query, transaction } from "./db";
 import { isSystemOn } from "./availability";
 import { auditCall, type TranscriptEntry } from "./callAudit";
 import { createPhoneCall } from "./retell";
@@ -115,8 +115,8 @@ function transcriptText(call: RetellCall): string {
     .join("\n");
 }
 
-async function insertTranscript(call: RetellCall, phone: string, text: string): Promise<void> {
-  await query(
+async function insertTranscript(run: typeof query, call: RetellCall, phone: string, text: string): Promise<void> {
+  await run(
     `INSERT INTO ${TRANSCRIPTIONS_TABLE} (transcription, name, phone, mail, fecha) VALUES ($1, $2, $3, $4, NOW())`,
     [
       text,
@@ -137,12 +137,17 @@ async function saveTranscriptOnce(call: RetellCall, phone: string): Promise<void
     console.log(`[transcripción] no guardada: motivo=${call.disconnection_reason ?? ""} buzón=${voicemail} no_conectada=${notConnected} texto=${text ? "sí" : "no"} call=${call.call_id ?? ""}`);
     return;
   }
-  const { rows } = await query(
-    `SELECT 1 FROM ${TRANSCRIPTIONS_TABLE} WHERE phone = $1 AND transcription = $2 LIMIT 1`,
-    [phone, text]
-  );
-  if (rows.length) return;
-  await insertTranscript(call, phone, text);
+  // call_ended y call_analyzed llegan casi a la vez: el bloqueo por teléfono hace que el segundo
+  // espere al primero y vea su transcripción, en lugar de guardarla otra vez.
+  await transaction(async (run) => {
+    await run(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`transcripcion:${phone}`]);
+    const { rows } = await run(
+      `SELECT 1 FROM ${TRANSCRIPTIONS_TABLE} WHERE phone = $1 AND transcription = $2 LIMIT 1`,
+      [phone, text]
+    );
+    if (rows.length) return;
+    await insertTranscript(run, call, phone, text);
+  });
 }
 
 // Eventos de Retell: call_started (no hace nada), call_ended (estado),
