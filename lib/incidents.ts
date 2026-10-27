@@ -20,6 +20,7 @@ export async function reportIncident(source: string, error: unknown, extra?: Rec
       .join("\n");
 
     console.error(text);
+    await saveLog(source, text);
 
     const token = process.env.BUFFALO_INCIDENTS_TOKEN;
     if (!token) {
@@ -42,5 +43,16 @@ export async function reportIncident(source: string, error: unknown, extra?: Rec
     }
   } catch (sendError) {
     console.error("No se pudo enviar el error al CRM", sendError);
+  }
+}
+
+// Guarda el error en la base de datos para consultarlo desde el MCP de socios (los logs del contenedor se pierden al redesplegar).
+// Import dinámico: db.ts también usa reportIncident.
+async function saveLog(source: string, text: string): Promise<void> {
+  try {
+    const { query } = await import("./db");
+    await query(`INSERT INTO eliasymunozabogados_logs (level, source, message) VALUES ('error', $1, $2)`, [source, text.slice(0, 8000)]);
+  } catch (logError) {
+    console.error("No se pudo guardar el error en la tabla de logs", logError);
   }
 }

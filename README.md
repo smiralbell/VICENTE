@@ -72,6 +72,25 @@ npm run dev
 - `lib/auth.ts` — Sesión por cookie
 - `middleware.ts` — Protección de rutas y redirección al login
 
+## MCP de socios (solo lectura)
+
+`POST /api/mcp` es un servidor MCP (Streamable HTTP, sin estado) para que un socio consulte el sistema desde su Claude:
+leads, citas, conversaciones, llamadas, auditorías, prompts y herramientas de la IA, agentes de voz de Retell, base de
+conocimiento, estado, errores y costes. No escribe nada. Código en `lib/mcp/` y `app/api/mcp/route.ts`.
+
+1. Crear las tablas una vez: ejecutar `sql/mcp.sql` en la base de datos (tokens y registro de errores).
+2. Crear un token por socio (se muestra una sola vez; solo se guarda su hash):
+   ```bash
+   node scripts/mcp-token.mjs crear "Nombre del socio" 90
+   node scripts/mcp-token.mjs listar
+   node scripts/mcp-token.mjs revocar <id>
+   ```
+3. El socio lo conecta:
+   - Claude Code: `claude mcp add --transport http elias-munoz https://<dominio>/api/mcp --header "Authorization: Bearer <token>"`
+   - Claude (web o escritorio), conector personalizado: `https://<dominio>/api/mcp?token=<token>`
+
+Los errores de producción se guardan en `eliasymunozabogados_logs` desde que existe la tabla (`listar_logs`).
+
 ## Seguridad
 
 - Credenciales solo en variables de entorno.
