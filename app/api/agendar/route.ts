@@ -2,13 +2,13 @@ import { reportIncident } from "@/lib/incidents";
 import { NextResponse } from "next/server";
 import { runAgendarConsulta } from "@/lib/chat/tools";
 import { checkWebhookToken } from "@/lib/webhookAuth";
-import { validatePhone } from "@/lib/phone";
+import { clean, parseRetellTool, resolvePhones, withOtherPhone } from "@/lib/retellTool";
 
 export const dynamic = "force-dynamic";
 
 // Herramienta de agendar consulta para el agente de voz (Retell).
 // Acepta los mismos campos que el webhook "Webhook agente de voz" de n8n.
-type AgendarBody = {
+type AgendarArgs = {
   name?: string;
   phone?: string;
   email?: string;
@@ -19,20 +19,13 @@ type AgendarBody = {
   source?: string;
   // Opcional: si Retell no lo envía, la modificación se detecta después en la transcripción.
   modifica_cita?: boolean | string;
-  call?: { call_id?: string; to_number?: string; from_number?: string };
 };
-
-// El agente de voz envía "{{campo}}" cuando una variable no tiene valor: se trata como vacío.
-function clean(value: string | undefined): string {
-  const text = (value ?? "").trim();
-  return /^\{\{.*\}\}$/.test(text) ? "" : text;
-}
 
 export async function POST(request: Request) {
   const denied = checkWebhookToken(request);
   if (denied) return denied;
 
-  let raw: AgendarBody;
+  let raw: unknown;
   try {
     raw = await request.json();
   } catch (error) {
@@ -40,33 +33,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const body: AgendarBody = {
-    ...raw,
-    name: clean(raw.name),
-    phone: clean(raw.phone),
-    email: clean(raw.email),
-    summaryCase: clean(raw.summaryCase),
-    horario: clean(raw.horario),
-    consultation_day_time: clean(raw.consultation_day_time),
-    modalidad: clean(raw.modalidad),
-    source: clean(raw.source),
-  };
-
-  const phone = body.phone || body.call?.from_number || "";
+  const { args, call, callPhone } = parseRetellTool<AgendarArgs>(raw, request);
+  // El teléfono de la llamada manda: así el lead siempre tiene teléfono aunque la IA no lo rellene.
+  const { phone, otro } = resolvePhones(args.phone, callPhone);
   // Igual que n8n: la sesión del lead es el teléfono normalizado.
-  const sessionId = validatePhone(phone).phone || phone || body.call?.call_id || "";
+  const sessionId = phone || clean(call.call_id);
 
   try {
     const result = await runAgendarConsulta(
       {
-        name: body.name ?? "",
+        name: clean(args.name),
         phone,
-        email: body.email ?? "",
-        summaryCase: body.summaryCase ?? "",
-        horario: body.horario || body.consultation_day_time || "",
-        modalidad: body.modalidad || "",
-        source: body.source || "Llamada de voz",
-        modificaCita: String(raw.modifica_cita) === "true",
+        email: clean(args.email),
+        summaryCase: withOtherPhone(clean(args.summaryCase), otro),
+        horario: clean(args.horario) || clean(args.consultation_day_time),
+        modalidad: clean(args.modalidad),
+        source: clean(args.source) || "Llamada de voz",
+        modificaCita: String(args.modifica_cita) === "true",
       },
       sessionId
     );

@@ -54,6 +54,7 @@ function renderDerivarEmail(payload: DerivarPayload, lawyer: Lawyer | null): str
               <div style="background:#070b2a; color:#ffffff; padding:18px; border-radius:10px; text-align:center; margin-bottom:24px;">
                 <p style="margin:0; font-size:13px; color:#d7d9e8;">Tipo de aviso</p>
                 <p style="margin:5px 0 0; font-size:20px; font-weight:bold;">Derivación a abogado</p>
+                <p style="margin:8px 0 0; font-size:15px; color:#d7d9e8;">Abogado: <strong style="color:#ffffff;">${value(payload.lawyerName)}</strong></p>
               </div>
               ${notFound}
               <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; margin-bottom:24px;">
