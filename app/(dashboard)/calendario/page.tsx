@@ -16,7 +16,7 @@ const MODOS = [
 const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 type Props = {
-  searchParams: Promise<{ mes?: string; modo?: string; gestion?: string }>;
+  searchParams: Promise<{ mes?: string; modo?: string; gestion?: string; dia?: string }>;
 };
 
 function currentMonthMadrid(): string {
@@ -67,11 +67,20 @@ export default async function CalendarioPage({ searchParams }: Props) {
 
   const monthName = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("es-ES", { month: "long", year: "numeric", timeZone: "UTC" });
   const today = madridDayKey(new Date());
-  const linkFor = (nextMes: string, nextModo: string, nextGestion: string) => {
+  const linkFor = (nextMes: string, nextModo: string, nextGestion: string, nextDia = "") => {
     const q = new URLSearchParams({ mes: nextMes, modo: nextModo });
     if (nextGestion) q.set("gestion", nextGestion);
+    if (nextDia) q.set("dia", nextDia);
     return `/calendario?${q.toString()}`;
   };
+
+  // Día abierto: muestra todas sus citas debajo del calendario (en la celda solo caben 3).
+  const dia = /^\d{4}-\d{2}-\d{2}$/.test(params.dia ?? "") && params.dia!.startsWith(mes) ? params.dia! : "";
+  const diaItems = dia ? byDay.get(dia) ?? [] : [];
+  const diaText = dia
+    ? new Date(`${dia}T12:00:00Z`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })
+    : "";
+  const diaLabel = diaText.charAt(0).toUpperCase() + diaText.slice(1);
 
   const counts = {
     total: rows.length,
@@ -129,11 +138,23 @@ export default async function CalendarioPage({ searchParams }: Props) {
             {cells.map((key, idx) => {
               const items = key ? byDay.get(key) ?? [] : [];
               const isToday = key === today;
+              const isOpen = key === dia;
               return (
-                <div key={idx} className={`min-h-[110px] border-b border-r border-paper-border p-1.5 ${key ? "" : "bg-paper/60"}`}>
+                <div key={idx} className={`min-h-[110px] border-b border-r border-paper-border p-1.5 ${key ? "" : "bg-paper/60"} ${isOpen ? "bg-brand-subtle ring-2 ring-inset ring-brand" : ""}`}>
                   {key && (
                     <>
-                      <div className={`mb-1 text-xs font-medium ${isToday ? "text-brand" : "text-paper-muted"}`}>{Number(key.slice(8))}</div>
+                      {items.length > 0 ? (
+                        <Link
+                          href={isOpen ? linkFor(mes, modo, gestion) : `${linkFor(mes, modo, gestion, key)}#citas-del-dia`}
+                          className={`mb-1 flex items-center justify-between rounded px-0.5 text-xs font-medium hover:bg-paper ${isToday ? "text-brand" : "text-paper-muted"}`}
+                          title="Ver todas las citas del día"
+                        >
+                          <span>{Number(key.slice(8))}</span>
+                          <span className="text-[10px] font-normal">{items.length} cita{items.length === 1 ? "" : "s"}</span>
+                        </Link>
+                      ) : (
+                        <div className={`mb-1 text-xs font-medium ${isToday ? "text-brand" : "text-paper-muted"}`}>{Number(key.slice(8))}</div>
+                      )}
                       <div className="space-y-1">
                         {items.slice(0, 3).map((row) => {
                           const gestionState = getGestionState(row.gestion_estado);
@@ -148,7 +169,14 @@ export default async function CalendarioPage({ searchParams }: Props) {
                             </Link>
                           );
                         })}
-                        {items.length > 3 && <p className="text-[11px] text-paper-muted">+{items.length - 3} más</p>}
+                        {items.length > 3 && (
+                          <Link
+                            href={`${linkFor(mes, modo, gestion, key)}#citas-del-dia`}
+                            className="block rounded px-1 text-[11px] font-medium text-brand hover:underline"
+                          >
+                            +{items.length - 3} más · ver todas
+                          </Link>
+                        )}
                       </div>
                     </>
                   )}
@@ -157,9 +185,47 @@ export default async function CalendarioPage({ searchParams }: Props) {
             })}
           </div>
         </div>
-
-
       </div>
+
+      {dia && (
+        <section id="citas-del-dia" className="mt-5 scroll-mt-4 rounded-2xl border border-paper-border bg-paper-card shadow-sm">
+          <header className="flex flex-wrap items-center justify-between gap-2 border-b border-paper-border px-4 py-3">
+            <div>
+              <h2 className="text-base font-semibold text-paper-ink">{diaLabel}</h2>
+              <p className="text-xs text-paper-muted">
+                {diaItems.length} cita{diaItems.length === 1 ? "" : "s"}, ordenadas por hora
+              </p>
+            </div>
+            <Link href={linkFor(mes, modo, gestion)} className="rounded-lg border border-paper-border px-3 py-1.5 text-sm text-paper-inkLight hover:bg-paper">
+              Cerrar
+            </Link>
+          </header>
+          {diaItems.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-paper-muted">No hay citas este día con los filtros actuales.</p>
+          ) : (
+            <ul className="divide-y divide-paper-border">
+              {diaItems.map((row) => {
+                const gestionState = getGestionState(row.gestion_estado);
+                return (
+                  <li key={row.id}>
+                    <Link href={`/leads/${row.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-paper">
+                      <span className="w-12 shrink-0 text-sm font-semibold tabular-nums text-paper-ink">{madridTime(new Date(row.cita_inicio))}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-paper-ink">{row.name || "Sin nombre"}</span>
+                        {row.phone && <span className="block text-xs text-paper-muted">{row.phone}</span>}
+                      </span>
+                      <span className={`rounded-full border px-2 py-0.5 text-xs ${chipClass(row)}`}>{isVideo(row) ? "Meet" : "Presencial"}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs ${gestionState.className}`} title={gestionState.description}>
+                        {gestionState.label}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-paper-muted">
         <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-violet-400" /> Presencial</span>
