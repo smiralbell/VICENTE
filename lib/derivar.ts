@@ -51,6 +51,10 @@ function renderDerivarEmail(payload: DerivarPayload, lawyer: Lawyer | null): str
           </tr>
           <tr>
             <td style="padding:32px;">
+              <div style="background:#070b2a; color:#ffffff; padding:18px; border-radius:10px; text-align:center; margin-bottom:24px;">
+                <p style="margin:0; font-size:13px; color:#d7d9e8;">Tipo de aviso</p>
+                <p style="margin:5px 0 0; font-size:20px; font-weight:bold;">Derivación a abogado</p>
+              </div>
               ${notFound}
               <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; margin-bottom:24px;">
                 <tr><td colspan="2" style="padding:12px; background:#070b2a; color:#ffffff; font-weight:bold;">Datos del cliente</td></tr>
@@ -96,7 +100,7 @@ export async function handleDerivar(payload: DerivarPayload): Promise<void> {
 
   await sendMail({
     to: recipients.join(", "),
-    subject: "Nuevo caso derivado",
+    subject: "DERIVACIÓN A ABOGADO",
     html: renderDerivarEmail(payload, lawyer),
   });
 }

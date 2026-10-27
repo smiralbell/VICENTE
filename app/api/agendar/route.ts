@@ -17,6 +17,8 @@ type AgendarBody = {
   consultation_day_time?: string;
   modalidad?: string;
   source?: string;
+  // Opcional: si Retell no lo envía, la modificación se detecta después en la transcripción.
+  modifica_cita?: boolean | string;
   call?: { call_id?: string; to_number?: string; from_number?: string };
 };
 
@@ -64,6 +66,7 @@ export async function POST(request: Request) {
         horario: body.horario || body.consultation_day_time || "",
         modalidad: body.modalidad || "",
         source: body.source || "Llamada de voz",
+        modificaCita: String(raw.modifica_cita) === "true",
       },
       sessionId
     );

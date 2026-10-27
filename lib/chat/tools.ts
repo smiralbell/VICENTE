@@ -1,11 +1,12 @@
 import { reportIncident } from "../incidents";
-import { addLeadNota, query } from "../db";
+import { query } from "../db";
 import { requireEnv } from "../env";
 import { sendMail } from "../email";
 import { chatCompletion, createEmbedding, type ToolDefinition } from "../openai";
 import { validatePhone } from "../phone";
 import { handleDerivar } from "../derivar";
-import { formatMadrid, parseMadridLocal } from "../dateFormat";
+import { parseMadridLocal } from "../dateFormat";
+import { anularCitas, getCitasFuturas, sendCitaModificadaEmail } from "../citas";
 import { LEAD_EMAIL_TEMPLATE } from "./leadEmailTemplate";
 import { TOOL_DESCRIPTIONS } from "./prompt";
 import { describeChatDatos, getChatDatos, saveChatDatos } from "./datos";
@@ -66,6 +67,12 @@ export const CHAT_TOOLS: ToolDefinition[] = [
           summaryCase: { type: "string", description: "Resumen del caso con modalidad, día y hora" },
           horario: { type: "string", description: "Fecha y hora exacta en formato dd/mm/aaaa hh:mm" },
           modalidad: { type: "string", enum: ["videoconferencia", "presencial"] },
+          modifica_cita: {
+            type: "boolean",
+            description:
+              "true solo si el cliente quiere cambiar el día o la hora de una cita que ya tenía (la anterior se anula). " +
+              "false si es su primera cita o si quiere otra cita para hablar de otro asunto (se conservan las dos).",
+          },
         },
         required: ["phone", "horario", "modalidad", "summaryCase"],
       },
@@ -150,6 +157,8 @@ export type AgendarArgs = {
   horario: string;
   modalidad: string;
   source?: string;
+  // true si el cliente cambia la fecha de una cita que ya tenía; si no, es una cita nueva.
+  modificaCita?: boolean;
 };
 
 function renderLeadEmail(values: Record<string, string>): string {
@@ -190,62 +199,51 @@ export async function runAgendarConsulta(args: AgendarArgs, sessionId: string): 
 
   const name = args.name || saved.name;
   const email = args.email || saved.email;
-  const replaced = await replacePreviousCitas(phone.phone, sessionId, when, args.horario);
+
+  // Si cambia una cita que ya tenía, la anterior se anula. Si es otra cita para otro asunto, se conservan las dos:
+  // como cada lead guarda una sola cita, la nueva va en un lead aparte cuando la anterior está en este mismo.
+  const previas = await getCitasFuturas(phone.phone, sessionId, when);
+  const modifica = args.modificaCita === true && previas.length > 0;
+  const keepsOwn = !modifica && previas.some((cita) => cita.session_id === sessionId);
+  const targetSession = keepsOwn ? `${sessionId}#cita-${Date.now()}` : sessionId;
+  if (modifica) {
+    await anularCitas(previas, args.horario);
+  }
 
   await query(
     `INSERT INTO ${LEADS_TABLE} (session_id, name, phone, email, summary, source, status, fecha, modalidad, gestion_estado, cita_inicio)
      VALUES ($1, $2, $3, $4, $5, $8, 'pending_contact', $6, $7, 'cita_pendiente', $9)
      ON CONFLICT (session_id) DO UPDATE SET name = COALESCE(NULLIF(EXCLUDED.name, ''), eliasymunozabogados_leads.name), phone = EXCLUDED.phone, email = COALESCE(NULLIF(EXCLUDED.email, ''), eliasymunozabogados_leads.email), summary = EXCLUDED.summary, source = EXCLUDED.source, status = EXCLUDED.status, fecha = EXCLUDED.fecha, modalidad = EXCLUDED.modalidad, gestion_estado = EXCLUDED.gestion_estado, cita_inicio = EXCLUDED.cita_inicio`,
-    [sessionId, name, phone.phone, email, args.summaryCase, args.horario, args.modalidad, args.source ?? 'Web chat', parseMadridLocal(args.horario)?.toISOString() ?? null]
+    [targetSession, name, phone.phone, email, args.summaryCase, args.horario, args.modalidad, args.source ?? 'Web chat', when?.toISOString() ?? null]
   );
 
-  // Si sustituye a otra cita, el despacho lo ve en el asunto y en el resumen, y no la toma por una cita más.
-  const modified = replaced.length > 0;
-  const previous = replaced.map((date) => formatMadrid(date)).join(", ");
+  if (modifica) {
+    await sendCitaModificadaEmail({
+      name,
+      phone: phone.phone,
+      email,
+      modalidad: args.modalidad,
+      antes: previas.map((cita) => cita.cita_inicio),
+      ahora: args.horario,
+      canal: args.source === "Llamada de voz" ? "por llamada" : "por el chat",
+    });
+    return "Cita modificada: la anterior queda anulada y el despacho ha recibido el aviso.";
+  }
+
   await sendMail({
     to: requireEnv("EMAIL_NOTIFY_TO"),
-    subject: modified ? "CITA MODIFICADA" : "NUEVO LEAD!!",
+    subject: "NUEVO LEAD!!",
     html: renderLeadEmail({
       fecha: args.horario,
       name,
       email,
       phone: phone.phone,
       modalidad: args.modalidad,
-      summary: modified ? `Cita modificada. La cita anterior (${previous}) queda anulada.\n\n${args.summaryCase}` : args.summaryCase,
+      summary: args.summaryCase,
     }),
   });
 
-  return modified
-    ? "Cita modificada: la anterior queda anulada y el despacho ha recibido el aviso."
-    : "Consulta agendada. El despacho ha recibido el aviso.";
-}
-
-type PreviousCita = { id: number; session_id: string | null; cita_inicio: Date };
-
-// Una persona solo tiene una cita futura. Si vuelve a agendar (por llamada o por chat) para cambiarla,
-// la nueva sustituye a la anterior: se anula en los otros leads con su teléfono, y en el mismo lead se sobrescribe.
-// Devuelve las fechas de las citas sustituidas.
-async function replacePreviousCitas(phone: string, sessionId: string, when: Date | null, horario: string): Promise<Date[]> {
-  const { rows } = await query<PreviousCita>(
-    `SELECT id, session_id, cita_inicio FROM ${LEADS_TABLE}
-     WHERE (phone = $1 OR session_id = $1 OR session_id = $2) AND cita_inicio > NOW()`,
-    [phone, sessionId]
-  );
-  // La misma fecha y hora otra vez no es un cambio de cita, sino la misma.
-  const changed = rows.filter((row) => !when || new Date(row.cita_inicio).getTime() !== when.getTime());
-
-  for (const row of changed) {
-    if (row.session_id !== sessionId) {
-      await query(
-        `UPDATE ${LEADS_TABLE} SET cita_inicio = NULL, fecha = NULL, modalidad = NULL,
-           gestion_estado = CASE WHEN gestion_estado IN ('cita_pendiente', 'cita_confirmada') THEN 'pendiente' ELSE gestion_estado END
-         WHERE id = $1`,
-        [row.id]
-      );
-    }
-    await addLeadNota(row.id, `Cita del ${formatMadrid(row.cita_inicio)} anulada: el cliente la ha cambiado al ${horario}.`, "Sistema");
-  }
-  return changed.map((row) => row.cita_inicio);
+  return "Consulta agendada. El despacho ha recibido el aviso.";
 }
 
 export type DerivarArgs = {
@@ -298,6 +296,7 @@ export async function executeTool(name: string, rawArgs: string, sessionId: stri
           summaryCase: args.summaryCase ?? "",
           horario: args.horario ?? "",
           modalidad: args.modalidad ?? "",
+          modificaCita: String(args.modifica_cita) === "true",
         },
         sessionId
       );

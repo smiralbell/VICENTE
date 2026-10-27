@@ -22,6 +22,7 @@ export type AuditInput = {
 export type AuditResult = {
   user_requested_derivation: boolean;
   user_requested_appointment: boolean;
+  user_requested_appointment_change: boolean;
   used_derivation_tool: boolean;
   used_appointment_tool: boolean;
   problem: string | null;
@@ -33,7 +34,7 @@ export type AuditResult = {
 function isDerivationTool(name: string): boolean {
   return /deriv/i.test(name);
 }
-function isAppointmentTool(name: string): boolean {
+export function isAppointmentTool(name: string): boolean {
   return /agend|cita|consulta/i.test(name);
 }
 
@@ -58,6 +59,8 @@ export async function auditCall(input: AuditInput): Promise<AuditResult> {
     "Eres un auditor de llamadas de un despacho de abogados. Analiza la transcripción y responde SOLO con JSON con estas claves: " +
     "user_requested_derivation (boolean: el cliente pidió hablar con una persona o abogado concreto), " +
     "user_requested_appointment (boolean: el cliente quiso una cita o consulta), " +
+    "user_requested_appointment_change (boolean: el cliente ya tenía una cita y quiso cambiarle el día o la hora; " +
+    "false si pidió otra cita distinta para hablar de otro asunto o si era su primera cita), " +
     "used_derivation_tool (boolean: el agente usó una herramienta de derivación), " +
     "used_appointment_tool (boolean: el agente usó una herramienta de agendar consulta), " +
     "problem (string o null: si el cliente lo pidió y el agente no usó la herramienta correspondiente, explícalo; si no hay problema, null), " +
@@ -75,6 +78,7 @@ export async function auditCall(input: AuditInput): Promise<AuditResult> {
   const result: AuditResult = {
     user_requested_derivation: parsed.user_requested_derivation === true,
     user_requested_appointment: parsed.user_requested_appointment === true,
+    user_requested_appointment_change: parsed.user_requested_appointment_change === true,
     used_derivation_tool: derivationTool,
     used_appointment_tool: appointmentTool,
     problem: parsed.problem ?? null,

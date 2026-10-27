@@ -1,7 +1,10 @@
 import { reportIncident } from "./incidents";
 import { query, transaction } from "./db";
 import { isSystemOn } from "./availability";
-import { auditCall, type TranscriptEntry } from "./callAudit";
+import { auditCall, isAppointmentTool, type TranscriptEntry } from "./callAudit";
+import { anularCitas, getCitasFuturas, sendCitaModificadaEmail } from "./citas";
+import { parseMadridLocal } from "./dateFormat";
+import { validatePhone } from "./phone";
 import { createPhoneCall } from "./retell";
 import { requireEnv } from "./env";
 
@@ -180,13 +183,58 @@ export async function handleRetellCallEvent(payload: RetellWebhookPayload): Prom
     if (entries.length) {
       const toolNames = Array.from(new Set(entries.filter((e) => e.role === "tool_call_invocation").map((e) => e.name ?? "").filter(Boolean)));
       try {
-        await auditCall({ callId: call.call_id ?? "", phone, agentId: call.agent_id ?? "", transcript: entries, toolNames });
+        const audit = await auditCall({ callId: call.call_id ?? "", phone, agentId: call.agent_id ?? "", transcript: entries, toolNames });
+        if (audit.user_requested_appointment_change) {
+          await applyCitaModificada(entries, phone);
+        }
       } catch (error) {
         reportIncident("callFlows", error);
         // Un fallo en la auditoría no debe afectar al resto del evento.
       }
     }
   }
+}
+
+type AgendarToolArgs = { name?: string; phone?: string; email?: string; horario?: string; consultation_day_time?: string; modalidad?: string };
+
+// El cliente llamó para cambiar su cita: el agente de voz agendó la nueva con la herramienta de siempre,
+// y aquí se anula la anterior para que no queden dos. Si pidió otra cita para otro asunto, no se llega aquí.
+async function applyCitaModificada(entries: TranscriptEntry[], callPhone: string): Promise<void> {
+  const booking = [...entries].reverse().find((e) => e.role === "tool_call_invocation" && isAppointmentTool(e.name ?? ""));
+  if (!booking) return;
+
+  let args: AgendarToolArgs;
+  try {
+    args = JSON.parse(booking.arguments ?? "{}");
+  } catch {
+    return;
+  }
+  const horario = args.horario || args.consultation_day_time || "";
+  const when = parseMadridLocal(horario);
+  if (!when) return;
+  const phone = validatePhone(args.phone || callPhone).phone || callPhone;
+
+  // Solo se anula la anterior si la nueva quedó guardada.
+  const { rows } = await query<{ name: string | null; email: string | null; modalidad: string | null }>(
+    `SELECT name, email, modalidad FROM ${LEADS_TABLE} WHERE (phone = $1 OR session_id = $1) AND cita_inicio = $2 LIMIT 1`,
+    [phone, when.toISOString()]
+  );
+  const nueva = rows[0];
+  if (!nueva) return;
+
+  const previas = await getCitasFuturas(phone, phone, when);
+  if (!previas.length) return;
+
+  await anularCitas(previas, horario);
+  await sendCitaModificadaEmail({
+    name: nueva.name ?? "",
+    phone,
+    email: nueva.email ?? "",
+    modalidad: nueva.modalidad ?? "",
+    antes: previas.map((cita) => cita.cita_inicio),
+    ahora: horario,
+    canal: "por llamada",
+  });
 }
 
 type LeadRow = { name: string | null; email: string | null; summary: string | null };
