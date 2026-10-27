@@ -2,7 +2,7 @@ import { reportIncident } from "./incidents";
 import { query, transaction } from "./db";
 import { isSystemOn } from "./availability";
 import { auditCall, isAppointmentTool, type TranscriptEntry } from "./callAudit";
-import { anularCitas, getCitasFuturas, sendCitaModificadaEmail } from "./citas";
+import { anularCitas, getCitasFuturas, sameTime, sendCitaModificadaEmail, withCitasLock } from "./citas";
 import { parseMadridLocal } from "./dateFormat";
 import { validatePhone } from "./phone";
 import { createPhoneCall } from "./retell";
@@ -214,26 +214,37 @@ async function applyCitaModificada(entries: TranscriptEntry[], callPhone: string
   if (!when) return;
   const phone = validatePhone(args.phone || callPhone).phone || callPhone;
 
-  // Solo se anula la anterior si la nueva quedó guardada.
-  const { rows } = await query<{ name: string | null; email: string | null; modalidad: string | null }>(
-    `SELECT name, email, modalidad FROM ${LEADS_TABLE} WHERE (phone = $1 OR session_id = $1) AND cita_inicio = $2 LIMIT 1`,
-    [phone, when.toISOString()]
-  );
-  const nueva = rows[0];
-  if (!nueva) return;
+  const outcome = await withCitasLock(phone, async (run) => {
+    // Solo se anula la anterior si la nueva quedó guardada.
+    const { rows } = await run<{ name: string | null; email: string | null; modalidad: string | null }>(
+      `SELECT name, email, modalidad FROM ${LEADS_TABLE} WHERE (phone = $1 OR session_id = $1) AND cita_inicio = $2 LIMIT 1`,
+      [phone, when.toISOString()]
+    );
+    const nueva = rows[0];
+    if (!nueva) return null;
 
-  const previas = await getCitasFuturas(phone, phone, when);
-  if (!previas.length) return;
+    // Si ya se anuló (este evento llega a veces dos veces) no queda ninguna otra y no se hace nada.
+    const otras = (await getCitasFuturas(run, phone, phone)).filter((cita) => !sameTime(cita, when));
+    if (!otras.length) return null;
 
-  await anularCitas(previas, horario);
+    // Con varias citas anteriores no se sabe cuál quería cambiar: no se anula ninguna y lo revisa el despacho.
+    const revisar = otras.length > 1;
+    if (!revisar) {
+      await anularCitas(run, otras, horario);
+    }
+    return { nueva, otras, revisar };
+  });
+  if (!outcome) return;
+
   await sendCitaModificadaEmail({
-    name: nueva.name ?? "",
+    name: outcome.nueva.name ?? "",
     phone,
-    email: nueva.email ?? "",
-    modalidad: nueva.modalidad ?? "",
-    antes: previas.map((cita) => cita.cita_inicio),
+    email: outcome.nueva.email ?? "",
+    modalidad: outcome.nueva.modalidad ?? "",
+    antes: outcome.otras.map((cita) => cita.cita_inicio),
     ahora: horario,
     canal: "por llamada",
+    revisar: outcome.revisar,
   });
 }
 

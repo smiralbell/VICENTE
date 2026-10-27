@@ -6,7 +6,7 @@ import { chatCompletion, createEmbedding, type ToolDefinition } from "../openai"
 import { validatePhone } from "../phone";
 import { handleDerivar } from "../derivar";
 import { parseMadridLocal } from "../dateFormat";
-import { anularCitas, getCitasFuturas, sendCitaModificadaEmail } from "../citas";
+import { anularCitas, getCitasFuturas, sameTime, sendCitaModificadaEmail, withCitasLock, type CitaFutura } from "../citas";
 import { LEAD_EMAIL_TEMPLATE } from "./leadEmailTemplate";
 import { TOOL_DESCRIPTIONS } from "./prompt";
 import { describeChatDatos, getChatDatos, saveChatDatos } from "./datos";
@@ -200,34 +200,54 @@ export async function runAgendarConsulta(args: AgendarArgs, sessionId: string): 
   const name = args.name || saved.name;
   const email = args.email || saved.email;
 
-  // Si cambia una cita que ya tenía, la anterior se anula. Si es otra cita para otro asunto, se conservan las dos:
-  // como cada lead guarda una sola cita, la nueva va en un lead aparte cuando la anterior está en este mismo.
-  const previas = await getCitasFuturas(phone.phone, sessionId, when);
-  const modifica = args.modificaCita === true && previas.length > 0;
-  const keepsOwn = !modifica && previas.some((cita) => cita.session_id === sessionId);
-  const targetSession = keepsOwn ? `${sessionId}#cita-${Date.now()}` : sessionId;
-  if (modifica) {
-    await anularCitas(previas, args.horario);
+  const telefono = phone.phone;
+  const outcome = await withCitasLock(telefono, async (run) => {
+    const futuras = await getCitasFuturas(run, telefono, sessionId);
+
+    // La misma cita ya está guardada (Retell repite a veces la herramienta): no se duplica ni se avisa otra vez.
+    const sameMode = (cita: CitaFutura) => (cita.modalidad ?? "").trim().toLowerCase() === args.modalidad.trim().toLowerCase();
+    if (futuras.some((cita) => sameTime(cita, when) && sameMode(cita))) {
+      return { kind: "repetida" as const, otras: [] };
+    }
+
+    // Si cambia una cita que ya tenía, la anterior se anula; si es otra cita para otro asunto, se conservan las dos.
+    // Solo se anula cuando hay una única cita anterior: con varias no se sabe cuál cambiar y lo revisa el despacho.
+    const otras = futuras.filter((cita) => !sameTime(cita, when));
+    const kind = !args.modificaCita || otras.length === 0 ? "nueva" : otras.length === 1 ? "modificada" : "revisar";
+    if (kind === "modificada") {
+      await anularCitas(run, otras, args.horario);
+    }
+
+    // Cada lead guarda una sola cita: si la que se conserva está en este mismo lead, la nueva va en un lead aparte.
+    const keepsOwn = kind !== "modificada" && otras.some((cita) => cita.session_id === sessionId);
+    const targetSession = keepsOwn ? `${sessionId}#cita-${Date.now()}` : sessionId;
+    await run(
+      `INSERT INTO ${LEADS_TABLE} (session_id, name, phone, email, summary, source, status, fecha, modalidad, gestion_estado, cita_inicio)
+       VALUES ($1, $2, $3, $4, $5, $8, 'pending_contact', $6, $7, 'cita_pendiente', $9)
+       ON CONFLICT (session_id) DO UPDATE SET name = COALESCE(NULLIF(EXCLUDED.name, ''), eliasymunozabogados_leads.name), phone = EXCLUDED.phone, email = COALESCE(NULLIF(EXCLUDED.email, ''), eliasymunozabogados_leads.email), summary = EXCLUDED.summary, source = EXCLUDED.source, status = EXCLUDED.status, fecha = EXCLUDED.fecha, modalidad = EXCLUDED.modalidad, gestion_estado = EXCLUDED.gestion_estado, cita_inicio = EXCLUDED.cita_inicio`,
+      [targetSession, name, telefono, email, args.summaryCase, args.horario, args.modalidad, args.source ?? 'Web chat', when?.toISOString() ?? null]
+    );
+    return { kind, otras };
+  });
+
+  // Los correos van después de guardar: si el correo falla, la cita ya está bien guardada.
+  if (outcome.kind === "repetida") {
+    return "Consulta agendada. El despacho ya ha recibido el aviso.";
   }
-
-  await query(
-    `INSERT INTO ${LEADS_TABLE} (session_id, name, phone, email, summary, source, status, fecha, modalidad, gestion_estado, cita_inicio)
-     VALUES ($1, $2, $3, $4, $5, $8, 'pending_contact', $6, $7, 'cita_pendiente', $9)
-     ON CONFLICT (session_id) DO UPDATE SET name = COALESCE(NULLIF(EXCLUDED.name, ''), eliasymunozabogados_leads.name), phone = EXCLUDED.phone, email = COALESCE(NULLIF(EXCLUDED.email, ''), eliasymunozabogados_leads.email), summary = EXCLUDED.summary, source = EXCLUDED.source, status = EXCLUDED.status, fecha = EXCLUDED.fecha, modalidad = EXCLUDED.modalidad, gestion_estado = EXCLUDED.gestion_estado, cita_inicio = EXCLUDED.cita_inicio`,
-    [targetSession, name, phone.phone, email, args.summaryCase, args.horario, args.modalidad, args.source ?? 'Web chat', when?.toISOString() ?? null]
-  );
-
-  if (modifica) {
+  if (outcome.kind !== "nueva") {
     await sendCitaModificadaEmail({
       name,
       phone: phone.phone,
       email,
       modalidad: args.modalidad,
-      antes: previas.map((cita) => cita.cita_inicio),
+      antes: outcome.otras.map((cita) => cita.cita_inicio),
       ahora: args.horario,
       canal: args.source === "Llamada de voz" ? "por llamada" : "por el chat",
+      revisar: outcome.kind === "revisar",
     });
-    return "Cita modificada: la anterior queda anulada y el despacho ha recibido el aviso.";
+    return outcome.kind === "modificada"
+      ? "Cita modificada: la anterior queda anulada y el despacho ha recibido el aviso."
+      : "Nueva cita registrada. El despacho revisará cuál de sus citas anteriores hay que anular y se lo confirmará.";
   }
 
   await sendMail({
