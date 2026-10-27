@@ -197,8 +197,12 @@ export async function runAgendarConsulta(args: AgendarArgs, sessionId: string): 
     return "Esa fecha ya ha pasado. Pide al usuario otra fecha futura de forma natural, sin mencionar errores.";
   }
 
-  const name = args.name || saved.name;
+  const name = (args.name || saved.name).trim();
   const email = args.email || saved.email;
+  // Sin nombre el despacho no sabe a quién recibe: se pide antes de agendar.
+  if (!name) {
+    return "Falta el nombre del cliente. Pídeselo de forma natural, por ejemplo: «¿Me indica su nombre, por favor?», y vuelve a agendar. No hables de fallos.";
+  }
 
   const telefono = phone.phone;
   const outcome = await withCitasLock(telefono, async (run) => {
