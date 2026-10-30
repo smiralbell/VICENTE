@@ -91,6 +91,9 @@ conocimiento, estado, errores y costes. No escribe nada. Código en `lib/mcp/` y
 
 Los errores de producción se guardan en `eliasymunozabogados_logs` desde que existe la tabla (`listar_logs`).
 
+Cada correo que envía el sistema (enviado o fallido) se guarda en `eliasymunozabogados_emails` (`sql/emails.sql`),
+con destinatarios, asunto, texto y HTML, y se consulta con `listar_correos` y `ver_correo`.
+
 ## Seguridad
 
 - Credenciales solo en variables de entorno.
