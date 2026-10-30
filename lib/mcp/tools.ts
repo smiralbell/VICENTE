@@ -15,6 +15,7 @@ const AUDITS = "eliasymunozabogados_call_audits";
 const USAGE = "eliasymunozabogados_token_usage";
 const LOGS = "eliasymunozabogados_logs";
 const VECTORS = "eliasymunozabogados_vectors";
+const EMAILS = "eliasymunozabogados_emails";
 const RETELL_API_BASE = "https://api.retellai.com";
 
 type Args = Record<string, unknown>;
@@ -587,6 +588,85 @@ export const MCP_TOOLS: McpTool[] = [
         logs: rows.rows.map((l) => ({ id: l.id, fecha: madrid(l.created_at), nivel: l.level, origen: l.source, mensaje: l.message })),
         paginacion: paginacion(Number(total.rows[0]?.n ?? 0), pagina, porPagina),
       };
+    },
+  },
+  {
+    name: "listar_correos",
+    description:
+      "Correos que ha enviado el sistema (nuevo lead, derivación a abogado, cita modificada…), del más reciente al más antiguo: fecha, si se envió o falló, destinatarios, asunto y el inicio del texto. " +
+      "Filtros: fechas, texto (en asunto, destinatarios o contenido, p. ej. un nombre o un teléfono) y estado. Se guardan desde que existe el registro. Por páginas.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        desde: { type: "string", description: "Primer día, DD-MM-YYYY (incluido)." },
+        hasta: { type: "string", description: "Último día, DD-MM-YYYY (incluido)." },
+        buscar: { type: "string", description: "Texto en el asunto, los destinatarios o el contenido." },
+        estado: { type: "string", enum: ["enviado", "fallido"], description: "Solo enviados o solo fallidos." },
+        ...PAGE_PROPS,
+      },
+    },
+    async run(args) {
+      const { pagina, porPagina, offset } = paging(args);
+      const where: string[] = [];
+      const params: string[] = [];
+      const desde = parseDia(str(args, "desde"), "desde");
+      if (desde) {
+        params.push(desde.toISOString());
+        where.push(`created_at >= $${params.length}`);
+      }
+      const hasta = parseDia(str(args, "hasta"), "hasta");
+      if (hasta) {
+        params.push(new Date(hasta.getTime() + 86400e3).toISOString());
+        where.push(`created_at < $${params.length}`);
+      }
+      const buscar = str(args, "buscar");
+      if (buscar) {
+        params.push(`%${buscar.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
+        where.push(`(asunto ILIKE $${params.length} OR destinatarios ILIKE $${params.length} OR texto ILIKE $${params.length})`);
+      }
+      const estado = str(args, "estado");
+      if (estado) {
+        params.push(estado);
+        where.push(`estado = $${params.length}`);
+      }
+      const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+      const [total, rows] = await Promise.all([
+        query<{ n: string }>(`SELECT COUNT(*)::text AS n FROM ${EMAILS} ${whereSql}`, params),
+        query<{ id: number; created_at: Date; estado: string; intentos: number; destinatarios: string; asunto: string; texto: string; error: string | null }>(
+          `SELECT id, created_at, estado, intentos, destinatarios, asunto, texto, error FROM ${EMAILS} ${whereSql} ORDER BY created_at DESC LIMIT ${porPagina} OFFSET ${offset}`,
+          params
+        ),
+      ]);
+      return {
+        correos: rows.rows.map((e) => ({
+          id: e.id,
+          fecha: madrid(e.created_at),
+          estado: e.estado,
+          intentos: e.intentos,
+          destinatarios: e.destinatarios,
+          asunto: e.asunto,
+          inicio: buscar ? snippet(e.texto, buscar, 150) : e.texto.slice(0, 300),
+          ...(e.error ? { error: e.error } : {}),
+          ver: "ver_correo con este id",
+        })),
+        paginacion: paginacion(Number(total.rows[0]?.n ?? 0), pagina, porPagina),
+      };
+    },
+  },
+  {
+    name: "ver_correo",
+    description: "Un correo enviado por el sistema completo: destinatarios, copia oculta, asunto, estado, intentos, error si falló y todo el texto tal cual le llegó al despacho.",
+    inputSchema: { type: "object", properties: { id: { type: "integer", description: "Id del correo (de listar_correos)." } }, required: ["id"] },
+    async run(args) {
+      const id = int(args, "id", 0, 0, Number.MAX_SAFE_INTEGER);
+      if (!id) throw new ToolInputError("Falta id");
+      const { rows } = await query<{ id: number; created_at: Date; estado: string; intentos: number; destinatarios: string; copia_oculta: string | null; asunto: string; texto: string; error: string | null }>(
+        `SELECT id, created_at, estado, intentos, destinatarios, copia_oculta, asunto, texto, error FROM ${EMAILS} WHERE id = $1`,
+        [id]
+      );
+      const e = rows[0];
+      if (!e) return { encontrado: false };
+      return { ...e, created_at: madrid(e.created_at) };
     },
   },
   {
