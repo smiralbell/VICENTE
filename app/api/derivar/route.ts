@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { handleDerivar } from "@/lib/derivar";
 import { checkWebhookToken } from "@/lib/webhookAuth";
 import { clean, parseRetellTool, resolvePhones, withOtherPhone } from "@/lib/retellTool";
+import { ASK_NAME, emailOrFromSummary, isRealName } from "@/lib/leadData";
 
 export const dynamic = "force-dynamic";
 
@@ -41,13 +42,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ result: "Falta un teléfono de contacto válido. Pídelo de forma natural, por ejemplo: «¿Me indica un teléfono de contacto, por favor?», y vuelve a derivar el caso. No hables de formatos ni de fallos." });
   }
 
+  // Sin nombre real el abogado no sabe a quién llama: la IA se lo pide al cliente y vuelve a derivar.
+  const clientName = clean(args.clientName);
+  if (!isRealName(clientName)) {
+    return NextResponse.json({ result: ASK_NAME });
+  }
+  const summaryCase = clean(args.summaryCase);
+
   try {
     await handleDerivar({
       lawyerName: clean(args.lawyerName),
-      clientName: clean(args.clientName),
+      clientName,
       clientPhone: phone,
-      clientEmail: clean(args.clientEmail),
-      summaryCase: withOtherPhone(clean(args.summaryCase), otro),
+      clientEmail: emailOrFromSummary(clean(args.clientEmail), summaryCase),
+      summaryCase: withOtherPhone(summaryCase, otro),
       // La sesión del lead de voz es su teléfono, igual que al agendar.
       sessionId: phone,
       source: clean(args.source) || "Llamada de voz",

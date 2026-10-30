@@ -6,6 +6,7 @@ import { chatCompletion, createEmbedding, type ToolDefinition } from "../openai"
 import { validatePhone } from "../phone";
 import { handleDerivar } from "../derivar";
 import { parseMadridLocal } from "../dateFormat";
+import { ASK_NAME, emailOrFromSummary, isRealName } from "../leadData";
 import { anularCitas, getCitasFuturas, sameTime, sendCitaModificadaEmail, withCitasLock, type CitaFutura } from "../citas";
 import { LEAD_EMAIL_TEMPLATE } from "./leadEmailTemplate";
 import { TOOL_DESCRIPTIONS } from "./prompt";
@@ -197,11 +198,11 @@ export async function runAgendarConsulta(args: AgendarArgs, sessionId: string): 
     return "Esa fecha ya ha pasado. Pide al usuario otra fecha futura de forma natural, sin mencionar errores.";
   }
 
-  const name = (args.name || saved.name).trim();
-  const email = args.email || saved.email;
+  const name = isRealName(args.name ?? "") ? (args.name ?? "").trim() : saved.name.trim();
+  const email = emailOrFromSummary(args.email || saved.email, args.summaryCase);
   // Sin nombre el despacho no sabe a quién recibe: se pide antes de agendar.
-  if (!name) {
-    return "Falta el nombre del cliente. Pídeselo de forma natural, por ejemplo: «¿Me indica su nombre, por favor?», y vuelve a agendar. No hables de fallos.";
+  if (!isRealName(name)) {
+    return ASK_NAME;
   }
 
   const telefono = phone.phone;
@@ -284,12 +285,16 @@ export async function runDerivarInterno(args: DerivarArgs, sessionId: string): P
   if (!phone.valid || !phone.phone) {
     return "Falta un teléfono de contacto válido. Pídelo de forma natural antes de derivar el caso. No hables de formatos ni de fallos.";
   }
+  const clientName = isRealName(args.clientName ?? "") ? (args.clientName ?? "").trim() : saved.name.trim();
+  if (!isRealName(clientName)) {
+    return ASK_NAME;
+  }
 
   await handleDerivar({
     lawyerName: args.lawyerName ?? "",
-    clientName: args.clientName || saved.name,
+    clientName,
     clientPhone: phone.phone,
-    clientEmail: args.clientEmail || saved.email,
+    clientEmail: emailOrFromSummary(args.clientEmail || saved.email, args.summaryCase),
     summaryCase: args.summaryCase,
     sessionId: phone.phone || sessionId,
     source: "Web chat",
