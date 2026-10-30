@@ -4,9 +4,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Dropdown from "@/components/Dropdown";
 import { GESTION_FILTERS } from "@/lib/leadFilters";
+import DateRangeFilter, { useSharedRange } from "@/components/DateRangeFilter";
+import { inRange } from "@/lib/dateRange";
 
 type Session = {
   lead: { gestion_estado: string | null } | null;
+  last_message_at: string | null;
 };
 
 const LEAD_FILTERS = [
@@ -23,6 +26,7 @@ export default function ConversationsKpiBar() {
   const q = searchParams.get("q") ?? "";
   const lead = searchParams.get("lead") ?? "";
   const gestion = searchParams.get("gestion") ?? "";
+  const range = useSharedRange();
 
   useEffect(() => {
     fetch("/api/conversations")
@@ -40,9 +44,11 @@ export default function ConversationsKpiBar() {
     router.push(`/conversations${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
-  const withLead = (sessions ?? []).filter((s) => s.lead);
+  // Las cifras siguen el rango de fechas, igual que el listado.
+  const inPeriod = (sessions ?? []).filter((s) => inRange(s.last_message_at, range));
+  const withLead = inPeriod.filter((s) => s.lead);
   const cards = [
-    { label: "Conversaciones", value: sessions?.length ?? 0, tone: "text-paper-ink", hint: "Todas las conversaciones del asistente web." },
+    { label: "Conversaciones", value: inPeriod.length, tone: "text-paper-ink", hint: "Todas las conversaciones del asistente web." },
     { label: "Con lead", value: withLead.length, tone: "text-emerald-700", hint: "Conversaciones que ya tienen un lead asociado." },
     { label: "Pendientes de gestionar", value: withLead.filter((s) => s.lead?.gestion_estado === "pendiente").length, tone: "text-slate-700", hint: "Leads que nadie del despacho ha revisado." },
     { label: "Citas por confirmar", value: withLead.filter((s) => s.lead?.gestion_estado === "cita_pendiente").length, tone: "text-sky-700", hint: "Citas agendadas que faltan por confirmar." },
@@ -71,6 +77,7 @@ export default function ConversationsKpiBar() {
       >
         <Dropdown label="Filtrar por lead" value={lead} options={LEAD_FILTERS} onChange={(v) => change({ lead: v })} />
         <Dropdown label="Filtrar por gestión" value={gestion} options={GESTION_FILTERS} onChange={(v) => change({ gestion: v })} />
+        <DateRangeFilter range={range} />
         <input
           type="search"
           name="q"

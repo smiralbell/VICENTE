@@ -1,7 +1,7 @@
 export type LeadFilters = {
-  status?: string;
+  origen?: string;
+  estado?: string;
   gestion?: string;
-  modalidad?: string;
   from?: string;
   to?: string;
 };
@@ -87,33 +87,13 @@ export function getGestionState(key: string | null) {
   return GESTION_STATES.find((g) => g.key === key) ?? GESTION_STATES[0];
 }
 
-export const LEAD_STATUS_FILTERS = [
-  { key: "", label: "Todas las llamadas", className: "" },
-  ...Object.entries(CALL_STATES).map(([key, s]) => ({ key, label: s.label, className: s.className })),
-];
-
 export const GESTION_FILTERS = [
   { key: "", label: "Toda la gestión", className: "" },
   ...GESTION_STATES.map((g) => ({ key: g.key, label: g.label, className: g.className })),
 ];
 
-export const MODALIDAD_FILTERS = [
-  { key: "", label: "Toda modalidad", className: "" },
-  { key: "presencial", label: "Presencial", className: "bg-violet-100 text-violet-800 border border-violet-200" },
-  { key: "videoconferencia", label: "Meet / videoconferencia", className: "bg-sky-100 text-sky-800 border border-sky-200" },
-  { key: "sin_reunion", label: "Sin cita", className: "bg-paper-border text-paper-muted" },
-];
-
-export function isLeadStatusFilter(value: string): boolean {
-  return LEAD_STATUS_FILTERS.some((f) => f.key === value);
-}
-
 export function isGestionFilter(value: string): boolean {
   return GESTION_FILTERS.some((f) => f.key === value);
-}
-
-export function isModalidadFilter(value: string): boolean {
-  return MODALIDAD_FILTERS.some((f) => f.key === value);
 }
 
 export function getStatusPill(status: string | null) {
@@ -177,6 +157,48 @@ export function getOriginPill(source: string | null) {
   if (/formulario/i.test(value)) return { label: "Formulario", className: "bg-amber-100 text-amber-800 border border-amber-200" };
   return { label: value, className: "bg-paper-border text-paper-muted" };
 }
+
+// Filtros de la tabla de leads: los mismos valores que las columnas Origen y Estado.
+export const ORIGEN_FILTERS = [
+  { key: "", label: "Todos los orígenes", className: "" },
+  { key: "llamada", label: "Llamada", className: "bg-sky-100 text-sky-800 border border-sky-200" },
+  { key: "widget", label: "Widget", className: "bg-emerald-100 text-emerald-800 border border-emerald-200" },
+  { key: "formulario", label: "Formulario", className: "bg-amber-100 text-amber-800 border border-amber-200" },
+];
+
+export const ESTADO_FILTERS = [
+  { key: "", label: "Todos los estados", className: "" },
+  { key: "pendiente", ...ESTADO_PENDIENTE },
+  { key: "sin_llamar", ...CALL_STATES.pending_contact },
+  { key: "llamo_despacho", ...PHONE_CALL_STATE },
+  { key: "contesto", ...CALL_STATES.contacted },
+  { key: "no_contesta", ...CALL_STATES.no_answer },
+  { key: "reintento", ...CALL_STATES.retry_pending },
+  { key: "cita_pendiente", ...ESTADO_BY_GESTION.cita_pendiente },
+  { key: "cita_confirmada", ...ESTADO_BY_GESTION.cita_confirmada },
+  { key: "derivado", ...ESTADO_BY_GESTION.derivado },
+  { key: "cerrado", ...ESTADO_BY_GESTION.cerrado },
+].map(({ key, label, className }) => ({ key, label, className }));
+
+export function isOrigenFilter(value: string): boolean {
+  return ORIGEN_FILTERS.some((f) => f.key === value);
+}
+
+export function isEstadoFilter(value: string): boolean {
+  return ESTADO_FILTERS.some((f) => f.key === value);
+}
+
+// Lo mismo que getOriginPill y getLeadEstado, en SQL, para filtrar en la base de datos.
+const PHONE_SQL = `COALESCE(source, '') ~* '(llamada|\\{\\{)'`;
+export const ORIGEN_SQL = `CASE WHEN ${PHONE_SQL} THEN 'llamada' WHEN COALESCE(source, '') ~* 'chat' THEN 'widget' WHEN COALESCE(source, '') ~* 'formulario' THEN 'formulario' ELSE 'otro' END`;
+export const ESTADO_SQL = `CASE
+  WHEN gestion_estado IN ('cerrado', 'derivado', 'cita_confirmada', 'cita_pendiente') THEN gestion_estado
+  WHEN ${PHONE_SQL} THEN 'llamo_despacho'
+  WHEN status = 'contacted' THEN 'contesto'
+  WHEN status = 'no_answer' THEN 'no_contesta'
+  WHEN status = 'retry_pending' THEN 'reintento'
+  WHEN source = 'Formulario' THEN 'sin_llamar'
+  ELSE 'pendiente' END`;
 
 export const APPOINTMENT_GESTION_KEYS =["cita_pendiente", "cita_confirmada"];
 

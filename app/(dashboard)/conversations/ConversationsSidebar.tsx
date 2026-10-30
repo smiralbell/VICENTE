@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSharedRange } from "@/components/DateRangeFilter";
+import { inRange } from "@/lib/dateRange";
 
 type LeadLite = {
   id: number;
@@ -15,7 +17,7 @@ type LeadLite = {
 type SessionWithLeadAndPreview = {
   session_id: string;
   message_count: number;
-  last_message_at: Date | null;
+  last_message_at: string | null;
   lead: LeadLite | null;
   datos: { name: string; phone: string; email: string } | null;
   last_message_preview: string | null;
@@ -34,6 +36,7 @@ export default function ConversationsSidebar() {
   const q = searchParams.get("q") ?? "";
   const leadFilter = searchParams.get("lead") ?? "";
   const gestionFilter = searchParams.get("gestion") ?? "";
+  const range = useSharedRange();
   const [sessions, setSessions] = useState<SessionWithLeadAndPreview[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,9 +60,10 @@ export default function ConversationsSidebar() {
         if (leadFilter === "con_lead" && !s.lead) return false;
         if (leadFilter === "sin_lead" && s.lead) return false;
         if (gestionFilter && s.lead?.gestion_estado !== gestionFilter) return false;
+        if (!inRange(s.last_message_at, range)) return false;
         return true;
       }),
-    [sessions, leadFilter, gestionFilter]
+    [sessions, leadFilter, gestionFilter, range]
   );
 
   return (

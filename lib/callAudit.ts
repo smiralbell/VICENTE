@@ -9,6 +9,7 @@ export type TranscriptEntry = {
   content?: string;
   name?: string;
   arguments?: string;
+  tool_call_id?: string;
 };
 
 export type AuditInput = {

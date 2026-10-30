@@ -99,9 +99,9 @@ function buildSortUrl(
   params.set("order", nextOrder);
   params.set("page", String(page));
   if (search) params.set("q", search);
-  if (filters.status) params.set("estado", filters.status);
+  if (filters.origen) params.set("origen", filters.origen);
+  if (filters.estado) params.set("estado", filters.estado);
   if (filters.gestion) params.set("gestion", filters.gestion);
-  if (filters.modalidad) params.set("modalidad", filters.modalidad);
   if (filters.from) params.set("desde", filters.from);
   if (filters.to) params.set("hasta", filters.to);
   return `/leads?${params.toString()}`;

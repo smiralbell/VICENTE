@@ -2,12 +2,14 @@ import type { LeadKpis } from "@/lib/db";
 
 type Props = {
   kpis: LeadKpis;
+  // Con un rango de fechas elegido, las cifras son solo de los leads creados en ese rango.
+  filtered?: boolean;
 };
 
 // Cada tarjeta explica qué cuenta, para que el equipo sepa qué significa.
-export default function LeadsKpis({ kpis }: Props) {
+export default function LeadsKpis({ kpis, filtered = false }: Props) {
   const cards = [
-    { label: "Total leads", value: kpis.total, hint: "Todos los leads guardados.", accent: "text-paper-ink" },
+    { label: filtered ? "Leads en el periodo" : "Total leads", value: kpis.total, hint: filtered ? "Leads creados en las fechas elegidas." : "Todos los leads guardados.", accent: "text-paper-ink" },
     { label: "Sin llamar", value: kpis.sinLlamar, hint: "Aún no los ha llamado el agente de voz.", accent: "text-amber-700" },
     { label: "Pendientes de gestionar", value: kpis.pendientesGestion, hint: "Nadie del despacho los ha revisado.", accent: "text-slate-700" },
     { label: "Citas por confirmar", value: kpis.citasPendientes, hint: "El agente agendó y falta confirmar.", accent: "text-sky-700" },

@@ -3,14 +3,16 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import Dropdown from "@/components/Dropdown";
-import { GESTION_FILTERS, LEAD_STATUS_FILTERS, MODALIDAD_FILTERS } from "@/lib/leadFilters";
+import DateRangeFilter from "@/components/DateRangeFilter";
+import { writeRangeCookie } from "@/lib/dateRange";
+import { ESTADO_FILTERS, GESTION_FILTERS, ORIGEN_FILTERS } from "@/lib/leadFilters";
 import EstadosLeyenda from "./EstadosLeyenda";
 
 type Props = {
   defaultValue?: string;
-  status?: string;
+  origen?: string;
+  estado?: string;
   gestion?: string;
-  modalidad?: string;
   from?: string;
   to?: string;
   page: number;
@@ -21,7 +23,7 @@ type Props = {
 const CONTROL =
   "h-11 rounded-xl border border-paper-border bg-paper-card text-sm text-paper-ink shadow-sm transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30";
 
-export default function LeadsToolbar({ defaultValue = "", status = "", gestion = "", modalidad = "", from = "", to = "" }: Props) {
+export default function LeadsToolbar({ defaultValue = "", origen = "", estado = "", gestion = "", from = "", to = "" }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [value, setValue] = useState(defaultValue);
@@ -47,9 +49,11 @@ export default function LeadsToolbar({ defaultValue = "", status = "", gestion =
     [value, update]
   );
 
-  const hasFilters = Boolean(status || gestion || modalidad || from || to);
+  const hasFilters = Boolean(origen || estado || gestion || from || to);
 
+  // Quita también las fechas compartidas con Conversaciones y Transcripciones.
   const clearAll = () => {
+    writeRangeCookie({ from: "", to: "" });
     const params = new URLSearchParams();
     const q = searchParams.get("q");
     if (q) params.set("q", q);
@@ -59,16 +63,11 @@ export default function LeadsToolbar({ defaultValue = "", status = "", gestion =
   return (
     <div className="flex w-full items-center gap-2">
       <form onSubmit={handleSubmit} role="search" aria-label="Buscar leads" className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        <Dropdown label="Filtrar por llamada" value={status} options={LEAD_STATUS_FILTERS} onChange={(v) => update({ estado: v })} className="shrink-0" />
+        <Dropdown label="Filtrar por origen" value={origen} options={ORIGEN_FILTERS} onChange={(v) => update({ origen: v })} className="shrink-0" />
+        <Dropdown label="Filtrar por estado" value={estado} options={ESTADO_FILTERS} onChange={(v) => update({ estado: v })} className="shrink-0" />
         <Dropdown label="Filtrar por gestión" value={gestion} options={GESTION_FILTERS} onChange={(v) => update({ gestion: v })} className="shrink-0" />
-        <Dropdown label="Filtrar por modalidad" value={modalidad} options={MODALIDAD_FILTERS} onChange={(v) => update({ modalidad: v })} className="shrink-0" />
 
-        <div className={`${CONTROL} flex shrink-0 items-center gap-1 px-2`}>
-          <span className="px-1 text-xs text-paper-muted">Creado</span>
-          <input type="date" aria-label="Desde" value={from} max={to || undefined} onChange={(e) => update({ desde: e.target.value })} className="h-full w-[118px] bg-transparent px-1 text-sm focus:outline-none" />
-          <span aria-hidden="true" className="text-paper-muted">–</span>
-          <input type="date" aria-label="Hasta" value={to} min={from || undefined} onChange={(e) => update({ hasta: e.target.value })} className="h-full w-[118px] bg-transparent px-1 text-sm focus:outline-none" />
-        </div>
+        <DateRangeFilter label="Creado" range={{ from, to }} />
 
         <input
           type="search"

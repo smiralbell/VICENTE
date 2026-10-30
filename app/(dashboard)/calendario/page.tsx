@@ -139,8 +139,13 @@ export default async function CalendarioPage({ searchParams }: Props) {
               const items = key ? byDay.get(key) ?? [] : [];
               const isToday = key === today;
               const isOpen = key === dia;
+              // Días ya pasados: en gris y sin color, para distinguirlos de los que vienen.
+              const isPast = Boolean(key && key < today);
               return (
-                <div key={idx} className={`min-h-[110px] border-b border-r border-paper-border p-1.5 ${key ? "" : "bg-paper/60"} ${isOpen ? "bg-brand-subtle ring-2 ring-inset ring-brand" : ""}`}>
+                <div
+                  key={idx}
+                  className={`min-h-[110px] border-b border-r border-paper-border p-1.5 ${key ? "" : "bg-paper/60"} ${isPast && !isOpen ? "bg-zinc-50 opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0" : ""} ${isOpen ? "bg-brand-subtle ring-2 ring-inset ring-brand" : ""}`}
+                >
                   {key && (
                     <>
                       {items.length > 0 ? (

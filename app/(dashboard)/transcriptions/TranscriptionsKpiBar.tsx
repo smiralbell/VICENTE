@@ -3,17 +3,12 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Dropdown from "@/components/Dropdown";
+import DateRangeFilter, { useSharedRange } from "@/components/DateRangeFilter";
+import { inRange } from "@/lib/dateRange";
 
 type Item = { phone: string | null; mail: string | null; fecha: string | null };
 
 const DAY = 24 * 60 * 60 * 1000;
-
-const PERIODOS = [
-  { key: "", label: "Todo el periodo", className: "" },
-  { key: "hoy", label: "Hoy", className: "bg-emerald-100 text-emerald-800 border border-emerald-200" },
-  { key: "7", label: "Últimos 7 días", className: "bg-sky-100 text-sky-800 border border-sky-200" },
-  { key: "30", label: "Últimos 30 días", className: "bg-violet-100 text-violet-800 border border-violet-200" },
-];
 
 const CONTACTOS = [
   { key: "", label: "Cualquier contacto", className: "" },
@@ -27,8 +22,8 @@ export default function TranscriptionsKpiBar() {
   const searchParams = useSearchParams();
   const [items, setItems] = useState<Item[] | null>(null);
   const q = searchParams.get("q") ?? "";
-  const periodo = searchParams.get("periodo") ?? "";
   const contacto = searchParams.get("contacto") ?? "";
+  const range = useSharedRange();
 
   useEffect(() => {
     fetch("/api/transcriptions")
@@ -49,9 +44,10 @@ export default function TranscriptionsKpiBar() {
   const now = Date.now();
   const d = new Date();
   const startToday = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const list = items ?? [];
+  // Las cifras siguen el rango de fechas, igual que el listado.
+  const list = (items ?? []).filter((t) => inRange(t.fecha, range));
   const cards = [
-    { label: "Transcripciones", value: list.length, tone: "text-paper-ink", hint: "Todas las llamadas transcritas." },
+    { label: "Transcripciones", value: list.length, tone: "text-paper-ink", hint: range.from || range.to ? "Llamadas transcritas en las fechas elegidas." : "Todas las llamadas transcritas." },
     { label: "Hoy", value: list.filter((t) => t.fecha && new Date(t.fecha).getTime() >= startToday).length, tone: "text-emerald-700", hint: "Llamadas de hoy." },
     { label: "Últimos 7 días", value: list.filter((t) => t.fecha && now - new Date(t.fecha).getTime() <= 7 * DAY).length, tone: "text-sky-700", hint: "Llamadas de la última semana." },
     { label: "Con teléfono", value: list.filter((t) => t.phone).length, tone: "text-violet-700", hint: "Transcripciones con número de teléfono." },
@@ -78,7 +74,7 @@ export default function TranscriptionsKpiBar() {
           change({ q: value.trim() });
         }}
       >
-        <Dropdown label="Filtrar por periodo" value={periodo} options={PERIODOS} onChange={(v) => change({ periodo: v })} />
+        <DateRangeFilter range={range} />
         <Dropdown label="Filtrar por contacto" value={contacto} options={CONTACTOS} onChange={(v) => change({ contacto: v })} />
         <input
           type="search"

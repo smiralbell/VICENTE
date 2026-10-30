@@ -1,7 +1,7 @@
 import { reportIncident } from "./incidents";
 import { Pool } from "pg";
 import { datesMatch, pickBestByDate } from "./parseDate";
-import type { LeadFilters } from "./leadFilters";
+import { ESTADO_SQL, ORIGEN_SQL, type LeadFilters } from "./leadFilters";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -109,6 +109,21 @@ export type LeadKpis = {
   derivados: number;
 };
 
+// Rango de fechas de creación del lead (días en hora de Madrid, ambos incluidos).
+function dateRangeSql(filters: LeadFilters, firstParam: number): { conditions: string[]; params: string[] } {
+  const conditions: string[] = [];
+  const params: string[] = [];
+  if (filters.from) {
+    params.push(filters.from);
+    conditions.push(`(created_at AT TIME ZONE 'Europe/Madrid')::date >= $${firstParam + params.length - 1}::date`);
+  }
+  if (filters.to) {
+    params.push(filters.to);
+    conditions.push(`(created_at AT TIME ZONE 'Europe/Madrid')::date <= $${firstParam + params.length - 1}::date`);
+  }
+  return { conditions, params };
+}
+
 export async function getLeadsPaginated(
   page: number,
   pageSize: number,
@@ -132,34 +147,27 @@ export async function getLeadsPaginated(
     paramIndex++;
   }
 
-  if (filters.status) {
-    conditions.push(`status = $${paramIndex}`);
-    params.push(filters.status);
+  if (filters.origen) {
+    conditions.push(`(${ORIGEN_SQL}) = $${paramIndex}`);
+    params.push(filters.origen);
     paramIndex++;
   }
 
-  if (filters.from) {
-    conditions.push(`created_at >= $${paramIndex}::date`);
-    params.push(filters.from);
+  if (filters.estado) {
+    conditions.push(`(${ESTADO_SQL}) = $${paramIndex}`);
+    params.push(filters.estado);
     paramIndex++;
   }
 
-  if (filters.to) {
-    conditions.push(`created_at < ($${paramIndex}::date + INTERVAL '1 day')`);
-    params.push(filters.to);
-    paramIndex++;
-  }
+  const range = dateRangeSql(filters, paramIndex);
+  conditions.push(...range.conditions);
+  params.push(...range.params);
+  paramIndex += range.params.length;
 
   if (filters.gestion) {
     conditions.push(`gestion_estado = $${paramIndex}`);
     params.push(filters.gestion);
     paramIndex++;
-  }
-
-  if (filters.modalidad === "presencial" || filters.modalidad === "videoconferencia") {
-    conditions.push(`LOWER(TRIM(modalidad)) = '${filters.modalidad}'`);
-  } else if (filters.modalidad === "sin_reunion") {
-    conditions.push(`NULLIF(TRIM(modalidad), '') IS NULL`);
   }
 
   const whereClause = conditions.length ? ` WHERE ${conditions.join(" AND ")}` : "";
@@ -215,7 +223,10 @@ export async function addLeadNota(leadId: number, texto: string, autor: string):
   await query(`INSERT INTO ${NOTAS_TABLE} (lead_id, texto, autor) VALUES ($1, $2, $3)`, [leadId, texto, autor]);
 }
 
-export async function getLeadsKpis(): Promise<LeadKpis> {
+// Cifras de las tarjetas. Con fechas, solo cuentan los leads creados en ese rango (igual que la tabla).
+export async function getLeadsKpis(filters: Pick<LeadFilters, "from" | "to"> = {}): Promise<LeadKpis> {
+  const range = dateRangeSql(filters, 1);
+  const where = range.conditions.length ? `WHERE ${range.conditions.join(" AND ")}` : "";
   const { rows } = await query<{
     total: string;
     sin_llamar: string;
@@ -231,7 +242,8 @@ export async function getLeadsKpis(): Promise<LeadKpis> {
       COUNT(*) FILTER (WHERE gestion_estado = 'cita_pendiente')::text AS citas_pendientes,
       COUNT(*) FILTER (WHERE gestion_estado = 'cita_confirmada')::text AS citas_confirmadas,
       COUNT(*) FILTER (WHERE gestion_estado = 'derivado')::text AS derivados
-    FROM ${LEADS_TABLE}`
+    FROM ${LEADS_TABLE} ${where}`,
+    range.params
   );
   const row = rows[0];
   return {
@@ -395,11 +407,12 @@ export async function getConversationSessionsWithLeadAndPreview(
   );
   const leadBySession = new Map(leadsRows.map((l) => [l.session_id!, l]));
 
-  const { rows: datosRows } = await query<{ session_id: string; name: string; phone: string; email: string }>(
-    `SELECT session_id, name, phone, email FROM eliasymunozabogados_chat_datos WHERE session_id IN (${placeholders})`,
+  const { rows: datosRows } = await query<{ session_id: string; name: string; phone: string; email: string; updated_at: Date | null }>(
+    `SELECT session_id, name, phone, email, updated_at FROM eliasymunozabogados_chat_datos WHERE session_id IN (${placeholders})`,
     sessionIds
   );
   const datosBySession = new Map(datosRows.map((d) => [d.session_id, { name: d.name, phone: d.phone, email: d.email }]));
+  const datosDateBySession = new Map(datosRows.map((d) => [d.session_id, d.updated_at]));
 
   const { rows: lastRows } = await query<{
     session_id: string;
@@ -424,12 +437,17 @@ export async function getConversationSessionsWithLeadAndPreview(
     })
   );
 
-  return sessions.map((s) => ({
-    ...s,
-    lead: leadBySession.get(s.session_id) ?? null,
-    datos: datosBySession.get(s.session_id) ?? null,
-    last_message_preview: previewBySession.get(s.session_id) ?? null,
-  }));
+  // Los mensajes del chat no guardan fecha: se usa la del lead o, si no hay, la de los datos que dio el cliente.
+  return sessions.map((s) => {
+    const lead = leadBySession.get(s.session_id) ?? null;
+    return {
+      ...s,
+      last_message_at: lead?.created_at ?? datosDateBySession.get(s.session_id) ?? null,
+      lead,
+      datos: datosBySession.get(s.session_id) ?? null,
+      last_message_preview: previewBySession.get(s.session_id) ?? null,
+    };
+  });
 }
 
 export async function findTranscriptionIdForLead(lead: {

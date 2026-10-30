@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSharedRange } from "@/components/DateRangeFilter";
+import { inRange } from "@/lib/dateRange";
 
 type TranscriptionItem = {
   id: number;
@@ -14,26 +16,12 @@ type TranscriptionItem = {
   fecha: string | null;
 };
 
-const DAY = 24 * 60 * 60 * 1000;
-
-function withinPeriod(fecha: string | null, periodo: string): boolean {
-  if (!periodo) return true;
-  if (!fecha) return false;
-  const t = new Date(fecha).getTime();
-  if (Number.isNaN(t)) return false;
-  if (periodo === "hoy") {
-    const d = new Date();
-    return t >= new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  }
-  return Date.now() - t <= Number(periodo) * DAY;
-}
-
 // Listado de transcripciones. Buscador y filtros están en la barra superior y se leen de la URL.
 export default function TranscriptionsSidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const q = searchParams.get("q") ?? "";
-  const periodo = searchParams.get("periodo") ?? "";
+  const range = useSharedRange();
   const contacto = searchParams.get("contacto") ?? "";
   const [items, setItems] = useState<TranscriptionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,12 +43,12 @@ export default function TranscriptionsSidebar() {
   const visible = useMemo(
     () =>
       items.filter((t) => {
-        if (!withinPeriod(t.fecha, periodo)) return false;
+        if (!inRange(t.fecha, range)) return false;
         if (contacto === "telefono" && !t.phone) return false;
         if (contacto === "email" && !t.mail) return false;
         return true;
       }),
-    [items, periodo, contacto]
+    [items, range, contacto]
   );
 
   return (

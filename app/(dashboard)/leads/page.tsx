@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { getLeadsPaginated, getLeadsKpis, isLeadSortField, findTranscriptionIdForLead, findSessionIdForLead } from "@/lib/db";
 import { isFormularioSource, isPhoneSource, isWebChatSource } from "@/lib/leadNavigation";
-import { isDateFilter, isGestionFilter, isLeadStatusFilter, isModalidadFilter, type LeadFilters } from "@/lib/leadFilters";
+import { cookies } from "next/headers";
+import { isEstadoFilter, isGestionFilter, isOrigenFilter, type LeadFilters } from "@/lib/leadFilters";
+import { RANGE_COOKIE, resolveRange } from "@/lib/dateRange";
 import LeadsKpis from "./LeadsKpis";
 import LeadsTable from "./LeadsTable";
 import LeadsToolbar from "./LeadsToolbar";
@@ -17,8 +19,8 @@ type Props = {
     q?: string;
     order?: string;
     sort?: string;
+    origen?: string;
     estado?: string;
-    modalidad?: string;
     gestion?: string;
     desde?: string;
     hasta?: string;
@@ -32,12 +34,14 @@ export default async function LeadsPage({ searchParams }: Props) {
   const order = params.order === "asc" ? "asc" : "desc";
   const sortField = isLeadSortField(params.sort ?? "") ? params.sort! : "created_at";
 
+  // Fechas de la URL o, si no trae, las elegidas en otra página (cookie compartida).
+  const range = resolveRange(params, (await cookies()).get(RANGE_COOKIE)?.value);
   const filters: LeadFilters = {
-    status: isLeadStatusFilter(params.estado ?? "") ? params.estado : "",
+    origen: isOrigenFilter(params.origen ?? "") ? params.origen : "",
+    estado: isEstadoFilter(params.estado ?? "") ? params.estado : "",
     gestion: isGestionFilter(params.gestion ?? "") ? params.gestion : "",
-    modalidad: isModalidadFilter(params.modalidad ?? "") ? params.modalidad : "",
-    from: isDateFilter(params.desde ?? "") ? params.desde : "",
-    to: isDateFilter(params.hasta ?? "") ? params.hasta : "",
+    from: range.from,
+    to: range.to,
   };
 
   const [{ leads, total }, kpis] = await Promise.all([
@@ -49,7 +53,7 @@ export default async function LeadsPage({ searchParams }: Props) {
       sortField as import("@/lib/db").LeadSortField,
       filters
     ),
-    getLeadsKpis(),
+    getLeadsKpis({ from: filters.from, to: filters.to }),
   ]);
 
   const leadsWithNavigation = await Promise.all(
@@ -72,7 +76,7 @@ export default async function LeadsPage({ searchParams }: Props) {
 
   return (
     <div className="w-full">
-      <LeadsKpis kpis={kpis} />
+      <LeadsKpis kpis={kpis} filtered={Boolean(filters.from || filters.to)} />
 
 
       <Suspense
@@ -83,9 +87,9 @@ export default async function LeadsPage({ searchParams }: Props) {
         <div className="mb-6 w-full">
           <LeadsToolbar
             defaultValue={search}
-            status={filters.status}
+            origen={filters.origen}
+            estado={filters.estado}
             gestion={filters.gestion}
-            modalidad={filters.modalidad}
             from={filters.from}
             to={filters.to}
             page={page}
@@ -150,9 +154,9 @@ function buildPageUrl(
   if (search) params.set("q", search);
   if (sortField !== "created_at") params.set("sort", sortField);
   if (order !== "desc") params.set("order", order);
-  if (filters.status) params.set("estado", filters.status);
+  if (filters.origen) params.set("origen", filters.origen);
+  if (filters.estado) params.set("estado", filters.estado);
   if (filters.gestion) params.set("gestion", filters.gestion);
-  if (filters.modalidad) params.set("modalidad", filters.modalidad);
   if (filters.from) params.set("desde", filters.from);
   if (filters.to) params.set("hasta", filters.to);
   return `/leads?${params.toString()}`;

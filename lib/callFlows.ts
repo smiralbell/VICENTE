@@ -180,6 +180,11 @@ export async function handleRetellCallEvent(payload: RetellWebhookPayload): Prom
 
     // Doble confirmación: comprueba si el agente usó la herramienta que el cliente necesitaba.
     const entries = call.transcript_with_tool_calls ?? [];
+    try {
+      await applySameCallRebooking(entries, phone);
+    } catch (error) {
+      reportIncident("callFlows", error);
+    }
     if (entries.length) {
       const toolNames = Array.from(new Set(entries.filter((e) => e.role === "tool_call_invocation").map((e) => e.name ?? "").filter(Boolean)));
       try {
@@ -196,6 +201,62 @@ export async function handleRetellCallEvent(payload: RetellWebhookPayload): Prom
 }
 
 type AgendarToolArgs = { name?: string; phone?: string; email?: string; horario?: string; consultation_day_time?: string; modalidad?: string };
+
+// Citas que el agente dejó agendadas en esta llamada (la herramienta respondió que se agendó), en orden.
+function bookedInCall(entries: TranscriptEntry[], callPhone: string): { horario: string; when: Date; phone: string }[] {
+  const booked: { horario: string; when: Date; phone: string }[] = [];
+  entries.forEach((entry, i) => {
+    if (entry.role !== "tool_call_invocation" || !isAppointmentTool(entry.name ?? "")) return;
+    const result = entries.slice(i + 1).find((e) => e.role === "tool_call_result" && (!entry.tool_call_id || e.tool_call_id === entry.tool_call_id));
+    if (!/agendada|modificada|nueva cita registrada/i.test(result?.content ?? "")) return;
+    let args: AgendarToolArgs;
+    try {
+      args = JSON.parse(entry.arguments ?? "{}");
+    } catch {
+      return;
+    }
+    const horario = args.horario || args.consultation_day_time || "";
+    const when = parseMadridLocal(horario);
+    if (when) booked.push({ horario, when, phone: validatePhone(args.phone || callPhone).phone || callPhone });
+  });
+  return booked;
+}
+
+// En una misma llamada el cliente a veces corrige la hora («martes a las 12… no, mejor a las 10») y el agente agenda dos veces.
+// Vale la última: las anteriores de esta llamada se anulan. Es una regla fija, no depende de que la IA lo interprete.
+async function applySameCallRebooking(entries: TranscriptEntry[], callPhone: string): Promise<void> {
+  const booked = bookedInCall(entries, callPhone);
+  if (booked.length < 2) return;
+  const final = booked[booked.length - 1];
+  const earlier = booked.slice(0, -1).filter((b) => b.when.getTime() !== final.when.getTime());
+  if (!earlier.length) return;
+
+  const outcome = await withCitasLock(final.phone, async (run) => {
+    const { rows } = await run<{ name: string | null; email: string | null; modalidad: string | null }>(
+      `SELECT name, email, modalidad FROM ${LEADS_TABLE} WHERE (phone = $1 OR session_id = $1) AND cita_inicio = $2 LIMIT 1`,
+      [final.phone, final.when.toISOString()]
+    );
+    const nueva = rows[0];
+    if (!nueva) return null;
+    // Solo las de esta llamada: otras citas futuras de la persona no se tocan aquí.
+    const earlierTimes = new Set(earlier.map((b) => b.when.getTime()));
+    const anular = (await getCitasFuturas(run, final.phone, final.phone)).filter((cita) => earlierTimes.has(new Date(cita.cita_inicio).getTime()));
+    if (!anular.length) return null;
+    await anularCitas(run, anular, final.horario);
+    return { nueva, anular };
+  });
+  if (!outcome) return;
+
+  await sendCitaModificadaEmail({
+    name: outcome.nueva.name ?? "",
+    phone: final.phone,
+    email: outcome.nueva.email ?? "",
+    modalidad: outcome.nueva.modalidad ?? "",
+    antes: outcome.anular.map((cita) => cita.cita_inicio),
+    ahora: final.horario,
+    canal: "en la misma llamada",
+  });
+}
 
 // El cliente llamó para cambiar su cita: el agente de voz agendó la nueva con la herramienta de siempre,
 // y aquí se anula la anterior para que no queden dos. Si pidió otra cita para otro asunto, no se llega aquí.
