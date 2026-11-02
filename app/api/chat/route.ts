@@ -3,9 +3,7 @@ import { NextResponse } from "next/server";
 import { runChatTurn } from "@/lib/chat/agent";
 import { checkWebhookToken } from "@/lib/webhookAuth";
 import { isSystemOn } from "@/lib/availability";
-
-const UNAVAILABLE_MESSAGE =
-  "En este momento el asistente no está disponible. Puede contactar con el despacho directamente.";
+import { handleOfflineChat, OFFLINE_ASK } from "@/lib/chat/offline";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +28,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Faltan message y sessionId" }, { status: 400 });
   }
 
+  // Sistema apagado: mensaje fijo, sin IA, y aviso al despacho. Si algo falla, al menos el mensaje fijo.
   if (!(await isSystemOn())) {
-    return NextResponse.json({ output: UNAVAILABLE_MESSAGE });
+    try {
+      return NextResponse.json({ output: await handleOfflineChat(sessionId, text) });
+    } catch (error) {
+      reportIncident("api/chat", error);
+      return NextResponse.json({ output: OFFLINE_ASK });
+    }
   }
 
   try {

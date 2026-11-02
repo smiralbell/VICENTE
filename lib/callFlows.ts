@@ -3,12 +3,14 @@ import { query, transaction } from "./db";
 import { isSystemOn } from "./availability";
 import { auditCall, isAppointmentTool, type TranscriptEntry } from "./callAudit";
 import { anularCitaSolicitada, anularCitas, getCitasFuturas, sameTime, sendCitaModificadaEmail, withCitasLock } from "./citas";
-import { parseMadridLocal } from "./dateFormat";
+import { formatMadrid, parseMadridLocal } from "./dateFormat";
 import { validatePhone } from "./phone";
 import { createPhoneCall } from "./retell";
 import { requireEnv } from "./env";
+import { sendAviso, type MotivoAviso } from "./avisos";
 
 const LEADS_TABLE = "eliasymunozabogados_leads";
+const NOTAS_TABLE = "eliasymunozabogados_lead_notas";
 const TRANSCRIPTIONS_TABLE = "eliasmunozabogados_transcripciones";
 const INBOUND_SOURCE = "Llamada directa al teléfono del despacho";
 // Motivos por los que la persona no contestó (buzón, ocupado, fallo de línea...). No cuentan como "Contestó".
@@ -39,7 +41,7 @@ export type RetellWebhookPayload = {
 };
 
 export type InboundPayload = {
-  call_inbound?: { from_number?: string; agent_id?: string };
+  call_inbound?: { from_number?: string; agent_id?: string; call_id?: string };
 };
 
 function phoneOf(call: RetellCall): string {
@@ -331,25 +333,49 @@ async function applyCitaModificada(entries: TranscriptEntry[], callPhone: string
 type LeadRow = { name: string | null; email: string | null; summary: string | null };
 
 // Llamada entrante: devuelve las variables dinámicas al agente de voz y crea el lead si no existe.
+// El lead de quien llama (se crea si es la primera vez que llama).
+async function findOrCreateInboundLead(fromNumber: string): Promise<LeadRow & { id: number | null }> {
+  const { rows } = await query<LeadRow & { id: number }>(
+    `SELECT id, name, email, summary FROM ${LEADS_TABLE} WHERE session_id = $1 OR phone = $1 ORDER BY created_at DESC LIMIT 1`,
+    [fromNumber]
+  );
+  if (rows[0]) return rows[0];
+  const inserted = await query<{ id: number }>(
+    `INSERT INTO ${LEADS_TABLE} (session_id, phone, source, status) VALUES ($1, $1, $2, 'pending_contact')
+     ON CONFLICT (session_id) DO NOTHING RETURNING id`,
+    [fromNumber, INBOUND_SOURCE]
+  );
+  return { id: inserted.rows[0]?.id ?? null, name: null, email: null, summary: null };
+}
+
+// Llamadas cuyo aviso ya se envió: Retell reintenta el webhook y no queremos varios correos por la misma llamada.
+const missedCalls = new Set<string>();
+
+// Llamada entrante que la IA no atiende (sistema apagado o horario laboral): queda en el lead y se avisa al despacho.
+export async function handleUnattendedInbound(payload: InboundPayload, motivo: MotivoAviso): Promise<void> {
+  const fromNumber = payload.call_inbound?.from_number ?? "";
+  const callId = payload.call_inbound?.call_id ?? "";
+  if (!fromNumber || (callId && missedCalls.has(callId))) return;
+  if (callId) missedCalls.add(callId);
+
+  const lead = await findOrCreateInboundLead(fromNumber);
+  if (lead.id) {
+    const reason = motivo === "horario_laboral" ? "es horario laboral y está el modo «solo fuera de horario»" : "el sistema está apagado";
+    await query(`INSERT INTO ${NOTAS_TABLE} (lead_id, texto, autor) VALUES ($1, $2, 'Sistema')`, [
+      lead.id,
+      `Llamada del ${formatMadrid(new Date())} sin atender por la IA: ${reason}. Se ha avisado al despacho.`,
+    ]);
+  }
+  await sendAviso({ motivo, canal: "llamada", name: lead.name ?? "", phone: fromNumber, email: lead.email ?? "", mensaje: lead.summary ?? "" });
+}
+
 export async function handleInboundCall(payload: InboundPayload) {
   const fromNumber = payload.call_inbound?.from_number;
   if (!fromNumber) {
     throw new Error("Falta call_inbound.from_number");
   }
 
-  const { rows } = await query<LeadRow>(
-    `SELECT name, email, summary FROM ${LEADS_TABLE} WHERE session_id = $1 OR phone = $1 ORDER BY created_at DESC LIMIT 1`,
-    [fromNumber]
-  );
-
-  let lead: LeadRow | undefined = rows[0];
-  if (!lead) {
-    await query(
-      `INSERT INTO ${LEADS_TABLE} (session_id, phone, source, status) VALUES ($1, $1, $2, 'pending_contact')`,
-      [fromNumber, INBOUND_SOURCE]
-    );
-    lead = { name: null, email: null, summary: null };
-  }
+  const lead = await findOrCreateInboundLead(fromNumber);
 
   return {
     call_inbound: {
