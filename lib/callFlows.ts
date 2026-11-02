@@ -2,7 +2,7 @@ import { reportIncident } from "./incidents";
 import { query, transaction } from "./db";
 import { isSystemOn } from "./availability";
 import { auditCall, isAppointmentTool, type TranscriptEntry } from "./callAudit";
-import { anularCitas, getCitasFuturas, sameTime, sendCitaModificadaEmail, withCitasLock } from "./citas";
+import { anularCitaSolicitada, anularCitas, getCitasFuturas, sameTime, sendCitaModificadaEmail, withCitasLock } from "./citas";
 import { parseMadridLocal } from "./dateFormat";
 import { validatePhone } from "./phone";
 import { createPhoneCall } from "./retell";
@@ -191,6 +191,9 @@ export async function handleRetellCallEvent(payload: RetellWebhookPayload): Prom
         const audit = await auditCall({ callId: call.call_id ?? "", phone, agentId: call.agent_id ?? "", transcript: entries, toolNames });
         if (audit.user_requested_appointment_change) {
           await applyCitaModificada(entries, phone);
+        } else if (audit.user_requested_appointment_cancel && !bookedInCall(entries, phone).length) {
+          // Anulación sin cita nueva: no hay herramienta en Retell, se detecta aquí y se avisa al despacho.
+          await applyCitaAnulada(call, phone);
         }
       } catch (error) {
         reportIncident("callFlows", error);
@@ -201,6 +204,22 @@ export async function handleRetellCallEvent(payload: RetellWebhookPayload): Prom
 }
 
 type AgendarToolArgs = { name?: string; phone?: string; email?: string; horario?: string; consultation_day_time?: string; modalidad?: string };
+
+// Llamadas cuya anulación ya se procesó (call_analyzed puede llegar más de una vez): así el despacho recibe un solo aviso.
+const cancelledCalls = new Set<string>();
+
+async function applyCitaAnulada(call: RetellCall, phone: string): Promise<void> {
+  const callId = call.call_id ?? "";
+  if (callId && cancelledCalls.has(callId)) return;
+  if (callId) cancelledCalls.add(callId);
+  await anularCitaSolicitada({
+    phone: validatePhone(phone).phone || phone,
+    sessionId: phone,
+    name: call.retell_llm_dynamic_variables?.name ?? "",
+    email: call.retell_llm_dynamic_variables?.email ?? "",
+    canal: "por llamada",
+  });
+}
 
 // Citas que el agente dejó agendadas en esta llamada (la herramienta respondió que se agendó), en orden.
 function bookedInCall(entries: TranscriptEntry[], callPhone: string): { horario: string; when: Date; phone: string }[] {

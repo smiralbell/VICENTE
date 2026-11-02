@@ -24,6 +24,7 @@ export type AuditResult = {
   user_requested_derivation: boolean;
   user_requested_appointment: boolean;
   user_requested_appointment_change: boolean;
+  user_requested_appointment_cancel: boolean;
   used_derivation_tool: boolean;
   used_appointment_tool: boolean;
   problem: string | null;
@@ -62,6 +63,8 @@ export async function auditCall(input: AuditInput): Promise<AuditResult> {
     "user_requested_appointment (boolean: el cliente quiso una cita o consulta), " +
     "user_requested_appointment_change (boolean: el cliente ya tenía una cita y quiso cambiarle el día o la hora; " +
     "false si pidió otra cita distinta para hablar de otro asunto o si era su primera cita), " +
+    "user_requested_appointment_cancel (boolean: el cliente pidió anular o cancelar una cita que tenía, sin pedir otra en su lugar; " +
+    "false si la cambió por otra fecha), " +
     "used_derivation_tool (boolean: el agente usó una herramienta de derivación), " +
     "used_appointment_tool (boolean: el agente usó una herramienta de agendar consulta), " +
     "problem (string o null: si el cliente lo pidió y el agente no usó la herramienta correspondiente, explícalo; si no hay problema, null), " +
@@ -80,6 +83,7 @@ export async function auditCall(input: AuditInput): Promise<AuditResult> {
     user_requested_derivation: parsed.user_requested_derivation === true,
     user_requested_appointment: parsed.user_requested_appointment === true,
     user_requested_appointment_change: parsed.user_requested_appointment_change === true,
+    user_requested_appointment_cancel: parsed.user_requested_appointment_cancel === true,
     used_derivation_tool: derivationTool,
     used_appointment_tool: appointmentTool,
     problem: parsed.problem ?? null,
