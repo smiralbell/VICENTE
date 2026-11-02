@@ -7,7 +7,7 @@ import { validatePhone } from "../phone";
 import { handleDerivar } from "../derivar";
 import { parseMadridLocal } from "../dateFormat";
 import { ASK_NAME, emailOrFromSummary, isRealName } from "../leadData";
-import { anularCitas, getCitasFuturas, sameTime, sendCitaModificadaEmail, withCitasLock, type CitaFutura } from "../citas";
+import { anularCitaSolicitada, anularCitas, getCitasFuturas, sameTime, sendCitaModificadaEmail, withCitasLock, type CitaFutura } from "../citas";
 import { LEAD_EMAIL_TEMPLATE } from "./leadEmailTemplate";
 import { TOOL_DESCRIPTIONS } from "./prompt";
 import { describeChatDatos, getChatDatos, saveChatDatos } from "./datos";
@@ -76,6 +76,24 @@ export const CHAT_TOOLS: ToolDefinition[] = [
           },
         },
         required: ["phone", "horario", "modalidad", "summaryCase"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "anular_cita",
+      description:
+        "Usa anular_cita cuando el cliente pida anular o cancelar una cita que ya tenía, sin pedir otra. " +
+        "Para cambiarla de día u hora no la uses: usa agendar_consulta con modifica_cita=true. Necesitas su teléfono y su nombre.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Nombre del cliente" },
+          phone: { type: "string", description: "Teléfono del cliente" },
+          email: { type: "string", description: "Email del cliente, o cadena vacía si no se conoce" },
+        },
+        required: ["phone"],
       },
     },
   },
@@ -271,6 +289,23 @@ export async function runAgendarConsulta(args: AgendarArgs, sessionId: string): 
   return "Consulta agendada. El despacho ha recibido el aviso.";
 }
 
+// El cliente pide en el chat anular su cita: se anula si está en el sistema y en cualquier caso se avisa al despacho.
+export async function runAnularCita(args: { name?: string; phone?: string; email?: string }, sessionId: string): Promise<string> {
+  const saved = await getChatDatos(sessionId);
+  const phone = validatePhone(args.phone || saved.phone);
+  if (!phone.valid || !phone.phone) {
+    return "Falta un teléfono de contacto válido. Pídelo de forma natural antes de anular la cita. No hables de formatos ni de fallos.";
+  }
+  const name = isRealName(args.name ?? "") ? (args.name ?? "").trim() : saved.name.trim();
+  if (!isRealName(name)) {
+    return ASK_NAME;
+  }
+  const resultado = await anularCitaSolicitada({ phone: phone.phone, sessionId, name, email: args.email || saved.email, canal: "por el chat" });
+  if (resultado === "anulada") return "Cita anulada. El despacho ha recibido el aviso.";
+  if (resultado === "revisar") return "Tiene varias citas: el despacho ha recibido el aviso y le confirmará cuál queda anulada. Díselo al cliente con naturalidad.";
+  return "El despacho ha recibido la petición de anular la cita y la gestionará. Díselo al cliente con naturalidad.";
+}
+
 export type DerivarArgs = {
   clientName?: string;
   clientPhone: string;
@@ -329,6 +364,9 @@ export async function executeTool(name: string, rawArgs: string, sessionId: stri
         },
         sessionId
       );
+    }
+    if (name === "anular_cita") {
+      return await runAnularCita({ name: args.name, phone: args.phone, email: args.email }, sessionId);
     }
     if (name === "derivar_interno") {
       return await runDerivarInterno(
