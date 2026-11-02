@@ -3,6 +3,7 @@ import { query, getDashboardSettings } from "./db";
 import { requireEnv } from "./env";
 import { createPhoneCall } from "./retell";
 import { validatePhone } from "./phone";
+import { sendAviso, type Aviso } from "./avisos";
 
 const LEADS_TABLE = "eliasymunozabogados_leads";
 
@@ -36,6 +37,15 @@ async function upsertLead(
   }
 }
 
+// El aviso al despacho no debe impedir guardar el lead: si el correo falla, queda registrado como incidencia.
+async function notify(aviso: Aviso): Promise<void> {
+  try {
+    await sendAviso(aviso);
+  } catch (error) {
+    reportIncident("outbound", error);
+  }
+}
+
 // Formulario web → llamada automática, con las mismas reglas que el flujo agente-outbond de n8n.
 export async function handleOutbound(payload: OutboundPayload): Promise<OutboundResult> {
   const name = payload.name ?? "";
@@ -45,12 +55,23 @@ export async function handleOutbound(payload: OutboundPayload): Promise<Outbound
   const sessionId = phone.phone || email || new Date().toISOString();
   const settings = await getDashboardSettings();
 
-  // Sistema apagado: no se llama. Se guarda el lead para no perderlo.
+  // Sistema apagado: no se llama. Se guarda el lead para no perderlo y se avisa al despacho (correo gris).
   if (!settings.systemPublished) {
     await upsertLead(sessionId, {
       name, phone: payload.phone ?? "", email, summary: `${summary} - El sistema está apagado, por lo que no se realizó la llamada automática.`,
       status: "pending_contact", source: "Formulario", withLastCall: false,
     });
+    await notify({ motivo: "sistema_apagado", canal: "formulario", name, phone: phone.phone || payload.phone, email, mensaje: summary });
+    return "pending_contact";
+  }
+
+  // Teléfono de otro país: el sistema no hace llamadas internacionales. Se guarda el lead y se avisa al despacho.
+  if (phone.valid && phone.phone && !phone.phone.startsWith("+34")) {
+    await upsertLead(sessionId, {
+      name, phone: phone.phone, email, summary: `${summary} - El teléfono no es español, así que no se hizo la llamada automática: hay que contactar a mano.`,
+      status: "pending_contact", source: "Formulario", withLastCall: false,
+    });
+    await notify({ motivo: "extranjero", canal: "formulario", name, phone: phone.phone, email, mensaje: summary });
     return "pending_contact";
   }
 
