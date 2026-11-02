@@ -144,8 +144,16 @@ export default async function CalendarioPage({ searchParams }: Props) {
               return (
                 <div
                   key={idx}
-                  className={`min-h-[110px] border-b border-r border-paper-border p-1.5 ${key ? "" : "bg-paper/60"} ${isPast && !isOpen ? "bg-zinc-50 opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0" : ""} ${isOpen ? "bg-brand-subtle ring-2 ring-inset ring-brand" : ""}`}
+                  className={`relative min-h-[110px] border-b border-r border-paper-border p-1.5 ${key ? "" : "bg-paper/60"} ${isPast && !isOpen ? "bg-zinc-50 opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0" : ""} ${isOpen ? "bg-brand-subtle ring-2 ring-inset ring-brand" : ""}`}
                 >
+                  {/* En el móvil la casilla es pequeña: tocar cualquier parte del día abre su lista de citas (y desde ahí, la ficha). */}
+                  {key && items.length > 0 && (
+                    <Link
+                      href={`${linkFor(mes, modo, gestion, key)}#citas-del-dia`}
+                      aria-label={`Ver las ${items.length} citas del día ${Number(key.slice(8))}`}
+                      className="absolute inset-0 z-10 md:hidden"
+                    />
+                  )}
                   {key && (
                     <>
                       {items.length > 0 ? (
@@ -219,9 +227,12 @@ export default async function CalendarioPage({ searchParams }: Props) {
                         <span className="block truncate text-sm font-medium text-paper-ink">{row.name || "Sin nombre"}</span>
                         {row.phone && <span className="block text-xs text-paper-muted">{row.phone}</span>}
                       </span>
-                      <span className={`rounded-full border px-2 py-0.5 text-xs ${chipClass(row)}`}>{isVideo(row) ? "Meet" : "Presencial"}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-xs ${gestionState.className}`} title={gestionState.description}>
-                        {gestionState.label}
+                      {/* En el móvil las etiquetas van debajo del nombre, para que el nombre se lea entero. */}
+                      <span className="flex w-full flex-wrap gap-2 pl-16 sm:w-auto sm:pl-0">
+                        <span className={`rounded-full border px-2 py-0.5 text-xs ${chipClass(row)}`}>{isVideo(row) ? "Meet" : "Presencial"}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs ${gestionState.className}`} title={gestionState.description}>
+                          {gestionState.label}
+                        </span>
                       </span>
                     </Link>
                   </li>
