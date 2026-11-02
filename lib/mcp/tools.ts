@@ -3,6 +3,7 @@ import { isAiAvailable, isWorkingHours } from "../availability";
 import { formatMadrid, parseMadridLocal } from "../dateFormat";
 import { AGENT_SYSTEM_PROMPT, TOOL_DESCRIPTIONS } from "../chat/prompt";
 import { CATEGORIES, CHAT_TOOLS, runSistemaRag } from "../chat/tools";
+import { costUsd, priceFor, usdPerEur } from "../usage";
 
 // Herramientas del MCP de socios. Todas son de SOLO LECTURA: ninguna escribe en la base de datos
 // ni llama a algo que cambie el sistema (salvo el registro de tokens de OpenAI al consultar el RAG).
@@ -671,22 +672,86 @@ export const MCP_TOOLS: McpTool[] = [
   },
   {
     name: "ver_costes",
-    description: "Tokens de OpenAI consumidos por modelo en un periodo (día, semana, mes o año hasta hoy), sumando chat, RAG y auditorías de llamadas.",
-    inputSchema: { type: "object", properties: { periodo: { type: "string", enum: ["dia", "semana", "mes", "año"], description: "Por defecto, mes." } } },
+    description:
+      "Gasto en euros de un periodo (día, semana, mes, año o todo): OpenAI por modelo (tokens y euros, sumando chat, RAG y auditorías de llamadas) " +
+      "y llamadas de Retell (minutos y euros). Los euros usan la tarifa oficial de cada modelo y el cambio del BCE.",
+    inputSchema: { type: "object", properties: { periodo: { type: "string", enum: ["dia", "semana", "mes", "año", "todo"], description: "Por defecto, mes." } } },
     async run(args) {
       const periodo = str(args, "periodo") || "mes";
-      const intervalos: Record<string, string> = { dia: "1 day", semana: "7 days", mes: "30 days", "año": "365 days" };
+      const intervalos: Record<string, string> = { dia: "1 day", semana: "7 days", mes: "30 days", "año": "365 days", todo: "100 years" };
       const intervalo = intervalos[periodo];
-      if (!intervalo) throw new ToolInputError("periodo debe ser dia, semana, mes o año");
-      const { rows } = await query<{ modelo: string; llamadas: number; tokens_entrada: string; tokens_salida: string }>(
-        `SELECT model AS modelo, COUNT(*)::int AS llamadas, SUM(input_tokens)::text AS tokens_entrada, SUM(output_tokens)::text AS tokens_salida
-         FROM ${USAGE} WHERE created_at > NOW() - $1::interval GROUP BY model ORDER BY SUM(input_tokens) DESC`,
-        [intervalo]
-      );
+      if (!intervalo) throw new ToolInputError("periodo debe ser dia, semana, mes, año o todo");
+      const rate = await usdPerEur();
+      const round = (n: number) => Math.round(n * 10000) / 10000;
+
+      // Coste guardado en cada consulta; las que no lo tienen (anteriores al registro) se calculan con la tarifa del modelo.
+      type Row = { modelo: string; llamadas: number; tokens_entrada: string; tokens_salida: string; eur_guardado: string | null; sin_coste_in: string; sin_coste_out: string };
+      let rows: Row[];
+      try {
+        rows = (await query<Row>(
+          `SELECT model AS modelo, COUNT(*)::int AS llamadas, SUM(input_tokens)::text AS tokens_entrada, SUM(output_tokens)::text AS tokens_salida,
+                  SUM(cost_eur)::text AS eur_guardado,
+                  COALESCE(SUM(input_tokens) FILTER (WHERE cost_eur IS NULL), 0)::text AS sin_coste_in,
+                  COALESCE(SUM(output_tokens) FILTER (WHERE cost_eur IS NULL), 0)::text AS sin_coste_out
+           FROM ${USAGE} WHERE created_at > NOW() - $1::interval GROUP BY model ORDER BY SUM(input_tokens) DESC`,
+          [intervalo]
+        )).rows;
+      } catch (error) {
+        if ((error as { code?: string }).code !== "42703") throw error;
+        rows = (await query<Row>(
+          `SELECT model AS modelo, COUNT(*)::int AS llamadas, SUM(input_tokens)::text AS tokens_entrada, SUM(output_tokens)::text AS tokens_salida,
+                  NULL AS eur_guardado, SUM(input_tokens)::text AS sin_coste_in, SUM(output_tokens)::text AS sin_coste_out
+           FROM ${USAGE} WHERE created_at > NOW() - $1::interval GROUP BY model ORDER BY SUM(input_tokens) DESC`,
+          [intervalo]
+        )).rows;
+      }
+      const porModelo = rows.map((r) => {
+        const extraUsd = costUsd(r.modelo, Number(r.sin_coste_in), Number(r.sin_coste_out));
+        const eur = Number(r.eur_guardado ?? 0) + (extraUsd ?? 0) / rate;
+        const price = priceFor(r.modelo);
+        return {
+          modelo: r.modelo,
+          llamadas: r.llamadas,
+          tokens_entrada: Number(r.tokens_entrada),
+          tokens_salida: Number(r.tokens_salida),
+          euros: price ? round(eur) : null,
+          tarifa_usd_por_millon: price ?? "sin tarifa: añadirla en lib/usage.ts",
+        };
+      });
+      const openaiEur = porModelo.reduce((a, m) => a + (m.euros ?? 0), 0);
+
+      // Retell da el coste de cada llamada (en céntimos de dólar).
+      let retell: Record<string, unknown>;
+      try {
+        const since = Date.now() - ({ dia: 1, semana: 7, mes: 30, "año": 365, todo: 36500 } as Record<string, number>)[periodo] * 86400e3;
+        let llamadas = 0, centimos = 0, segundos = 0;
+        let paginationKey: string | undefined;
+        for (let page = 0; page < 20; page++) {
+          const data = (await retellRequest("/v2/list-calls", { limit: 1000, sort_order: "descending", ...(paginationKey ? { pagination_key: paginationKey } : {}) })) as
+            { items?: { start_timestamp: number; call_cost?: { combined_cost?: number; total_duration_seconds?: number } }[]; has_more?: boolean; pagination_key?: string } | unknown[];
+          const items = (Array.isArray(data) ? data : data.items ?? []) as { start_timestamp: number; call_cost?: { combined_cost?: number; total_duration_seconds?: number } }[];
+          for (const c of items) {
+            if (c.start_timestamp < since) continue;
+            llamadas++;
+            centimos += c.call_cost?.combined_cost ?? 0;
+            segundos += c.call_cost?.total_duration_seconds ?? 0;
+          }
+          const more = !Array.isArray(data) && data.has_more && data.pagination_key && items.length && items[items.length - 1].start_timestamp >= since;
+          if (!more) break;
+          paginationKey = (data as { pagination_key?: string }).pagination_key;
+        }
+        retell = { llamadas, minutos: Math.round(segundos / 60), euros: round(centimos / 100 / rate) };
+      } catch {
+        retell = { error: "No se ha podido consultar Retell ahora" };
+      }
+
       return {
         periodo,
-        por_modelo: rows.map((r) => ({ ...r, tokens_entrada: Number(r.tokens_entrada), tokens_salida: Number(r.tokens_salida) })),
-        nota: "Solo OpenAI. Retell y el correo no están incluidos.",
+        cambio_bce_usd_por_eur: rate,
+        openai: { euros: round(openaiEur), por_modelo: porModelo },
+        retell,
+        total_euros: round(openaiEur + (typeof retell.euros === "number" ? retell.euros : 0)),
+        nota: "No incluye el correo, el servidor (Easypanel) ni la telefonía si se paga aparte de Retell.",
       };
     },
   },
