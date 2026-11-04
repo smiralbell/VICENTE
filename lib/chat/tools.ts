@@ -6,7 +6,7 @@ import { chatCompletion, createEmbedding, type ToolDefinition } from "../openai"
 import { validatePhone } from "../phone";
 import { handleDerivar } from "../derivar";
 import { parseMadridLocal } from "../dateFormat";
-import { ASK_NAME, emailOrFromSummary, isRealName } from "../leadData";
+import { ASK_NAME, emailOrFromSummary, isRealName, knownContact, pickEmail, pickName } from "../leadData";
 import { anularCitaSolicitada, anularCitas, getCitasFuturas, sameTime, sendCitaModificadaEmail, withCitasLock, type CitaFutura } from "../citas";
 import { LEAD_EMAIL_TEMPLATE } from "./leadEmailTemplate";
 import { TOOL_DESCRIPTIONS } from "./prompt";
@@ -216,8 +216,10 @@ export async function runAgendarConsulta(args: AgendarArgs, sessionId: string): 
     return "Esa fecha ya ha pasado. Pide al usuario otra fecha futura de forma natural, sin mencionar errores.";
   }
 
-  const name = isRealName(args.name ?? "") ? (args.name ?? "").trim() : saved.name.trim();
-  const email = emailOrFromSummary(args.email || saved.email, args.summaryCase);
+  // Lo que no rellene la IA se completa con lo que ya sabemos de esta persona (chat y leads con su teléfono, p. ej. el formulario).
+  const known = await knownContact(phone.phone);
+  const name = pickName(args.name, saved.name, known.name);
+  const email = pickEmail(emailOrFromSummary(args.email ?? "", args.summaryCase), saved.email, known.email);
   // Sin nombre el despacho no sabe a quién recibe: se pide antes de agendar.
   if (!isRealName(name)) {
     return ASK_NAME;
@@ -296,11 +298,12 @@ export async function runAnularCita(args: { name?: string; phone?: string; email
   if (!phone.valid || !phone.phone) {
     return "Falta un teléfono de contacto válido. Pídelo de forma natural antes de anular la cita. No hables de formatos ni de fallos.";
   }
-  const name = isRealName(args.name ?? "") ? (args.name ?? "").trim() : saved.name.trim();
+  const known = await knownContact(phone.phone);
+  const name = pickName(args.name, saved.name, known.name);
   if (!isRealName(name)) {
     return ASK_NAME;
   }
-  const resultado = await anularCitaSolicitada({ phone: phone.phone, sessionId, name, email: args.email || saved.email, canal: "por el chat" });
+  const resultado = await anularCitaSolicitada({ phone: phone.phone, sessionId, name, email: pickEmail(args.email, saved.email, known.email), canal: "por el chat" });
   if (resultado === "anulada") return "Cita anulada. El despacho ha recibido el aviso.";
   if (resultado === "revisar") return "Tiene varias citas: el despacho ha recibido el aviso y le confirmará cuál queda anulada. Díselo al cliente con naturalidad.";
   return "El despacho ha recibido la petición de anular la cita y la gestionará. Díselo al cliente con naturalidad.";
@@ -320,7 +323,8 @@ export async function runDerivarInterno(args: DerivarArgs, sessionId: string): P
   if (!phone.valid || !phone.phone) {
     return "Falta un teléfono de contacto válido. Pídelo de forma natural antes de derivar el caso. No hables de formatos ni de fallos.";
   }
-  const clientName = isRealName(args.clientName ?? "") ? (args.clientName ?? "").trim() : saved.name.trim();
+  const known = await knownContact(phone.phone);
+  const clientName = pickName(args.clientName, saved.name, known.name);
   if (!isRealName(clientName)) {
     return ASK_NAME;
   }
@@ -329,7 +333,7 @@ export async function runDerivarInterno(args: DerivarArgs, sessionId: string): P
     lawyerName: args.lawyerName ?? "",
     clientName,
     clientPhone: phone.phone,
-    clientEmail: emailOrFromSummary(args.clientEmail || saved.email, args.summaryCase),
+    clientEmail: pickEmail(emailOrFromSummary(args.clientEmail ?? "", args.summaryCase), saved.email, known.email),
     summaryCase: args.summaryCase,
     sessionId: phone.phone || sessionId,
     source: "Web chat",

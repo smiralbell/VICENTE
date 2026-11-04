@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { handleDerivar } from "@/lib/derivar";
 import { checkWebhookToken } from "@/lib/webhookAuth";
 import { clean, parseRetellTool, resolvePhones, withOtherPhone } from "@/lib/retellTool";
-import { ASK_NAME, emailOrFromSummary, isRealName } from "@/lib/leadData";
+import { ASK_NAME, emailOrFromSummary, isRealName, knownContact, pickEmail, pickName } from "@/lib/leadData";
 
 export const dynamic = "force-dynamic";
 
@@ -42,8 +42,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ result: "Falta un teléfono de contacto válido. Pídelo de forma natural, por ejemplo: «¿Me indica un teléfono de contacto, por favor?», y vuelve a derivar el caso. No hables de formatos ni de fallos." });
   }
 
+  // Lo que no rellene la IA sale de las variables de la llamada (formulario o lead que llama) o del lead con su teléfono.
+  const vars = call.retell_llm_dynamic_variables ?? {};
+  const known = await knownContact(phone);
   // Sin nombre real el abogado no sabe a quién llama: la IA se lo pide al cliente y vuelve a derivar.
-  const clientName = clean(args.clientName);
+  const clientName = pickName(clean(args.clientName), clean(vars.name), known.name);
   if (!isRealName(clientName)) {
     return NextResponse.json({ result: ASK_NAME });
   }
@@ -54,7 +57,7 @@ export async function POST(request: Request) {
       lawyerName: clean(args.lawyerName),
       clientName,
       clientPhone: phone,
-      clientEmail: emailOrFromSummary(clean(args.clientEmail), summaryCase),
+      clientEmail: pickEmail(emailOrFromSummary(clean(args.clientEmail), summaryCase), clean(vars.email), known.email),
       summaryCase: withOtherPhone(summaryCase, otro),
       // La sesión del lead de voz es su teléfono, igual que al agendar.
       sessionId: phone,
