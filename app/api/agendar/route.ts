@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { runAgendarConsulta } from "@/lib/chat/tools";
 import { checkWebhookToken } from "@/lib/webhookAuth";
 import { clean, parseRetellTool, resolvePhones, withOtherPhone } from "@/lib/retellTool";
+import { pickEmail, pickName } from "@/lib/leadData";
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +43,10 @@ export async function POST(request: Request) {
   try {
     const result = await runAgendarConsulta(
       {
-        name: clean(args.name),
+        // Si la IA no los rellena, los de las variables de la llamada (los del formulario o del lead que llama).
+        name: pickName(clean(args.name), clean(call.retell_llm_dynamic_variables?.name)),
         phone,
-        email: clean(args.email),
+        email: pickEmail(clean(args.email), clean(call.retell_llm_dynamic_variables?.email)),
         summaryCase: withOtherPhone(clean(args.summaryCase), otro),
         horario: clean(args.horario) || clean(args.consultation_day_time),
         modalidad: clean(args.modalidad),
