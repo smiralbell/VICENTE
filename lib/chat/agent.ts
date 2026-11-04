@@ -44,6 +44,14 @@ function buildSystemPrompt(datosCliente: string): string {
   return `${prompt}\n\n${datosCliente}\n\nCalendario de referencia (use estas fechas exactas al registrar una cita): ${nextDaysReference()}.`;
 }
 
+export const AI_DISCLOSURE = "Le atiende el asistente virtual de inteligencia artificial de G. Elías y Muñoz Abogados.";
+
+// Si la IA ya se ha presentado como IA no se repite; si no, el aviso va delante de su respuesta.
+export function withAiDisclosure(answer: string): string {
+  if (/\b(IA|inteligencia artificial)\b/i.test(answer.slice(0, 300))) return answer;
+  return `${AI_DISCLOSURE} ${answer}`;
+}
+
 export async function runChatTurn(sessionId: string, userText: string): Promise<string> {
   const history = await loadHistory(sessionId);
   // Lo que el cliente acaba de dar se guarda antes de contestar, para que el asistente ya lo tenga.
@@ -75,6 +83,8 @@ export async function runChatTurn(sessionId: string, userText: string): Promise<
   }
 
   if (!answer) answer = FALLBACK_ANSWER;
+  // Obligación legal: la primera respuesta de cada conversación dice siempre que quien atiende es una IA.
+  if (!history.some((m) => m.role === "assistant")) answer = withAiDisclosure(answer);
 
   await saveTurn(sessionId, userText, answer);
   return answer;
