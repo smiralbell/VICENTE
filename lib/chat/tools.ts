@@ -1,3 +1,4 @@
+import { alternativas, huecoOcupado } from "../huecos";
 import { reportIncident } from "../incidents";
 import { query } from "../db";
 import { requireEnv } from "../env";
@@ -214,6 +215,11 @@ export async function runAgendarConsulta(args: AgendarArgs, sessionId: string): 
   const when = parseMadridLocal(args.horario);
   if (when && when.getTime() < Date.now()) {
     return "Esa fecha ya ha pasado. Pide al usuario otra fecha futura de forma natural, sin mencionar errores.";
+  }
+  // Esa hora ya la tiene otra persona: no se agenda y se ofrecen horas libres.
+  if (when && (await huecoOcupado(when, phone.phone, sessionId))) {
+    const libres = await alternativas(when);
+    return `Esa hora ya está ocupada y la cita NO se ha agendado. Dile al usuario que a esa hora no queda hueco${libres ? ` y ofrécele dos de estas horas libres: ${libres}` : " y pídele otra hora"}. Cuando acepte una, vuelve a usar la herramienta. No hables de fallos.`;
   }
 
   // Lo que no rellene la IA se completa con lo que ya sabemos de esta persona (chat y leads con su teléfono, p. ej. el formulario).

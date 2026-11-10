@@ -1,3 +1,4 @@
+import { huecosLibresTexto } from "../huecos";
 import { requireEnv } from "../env";
 import { chatCompletion, type ChatMessage } from "../openai";
 import { loadHistory, saveTurn } from "./memory";
@@ -39,9 +40,12 @@ function nextDaysReference(): string {
   return days.join("; ");
 }
 
-function buildSystemPrompt(datosCliente: string): string {
+function buildSystemPrompt(datosCliente: string, huecos: string): string {
   const prompt = AGENT_SYSTEM_PROMPT.replace(/\{\{FECHA\}\}/g, spanishNow());
-  return `${prompt}\n\n${datosCliente}\n\nCalendario de referencia (use estas fechas exactas al registrar una cita): ${nextDaysReference()}.`;
+  const libres = huecos
+    ? `\n\nHoras libres para citas (proponga solo de estas; si el usuario pide otra, se comprueba al agendar): ${huecos}.`
+    : "";
+  return `${prompt}\n\n${datosCliente}\n\nCalendario de referencia (use estas fechas exactas al registrar una cita): ${nextDaysReference()}.${libres}`;
 }
 
 export const AI_DISCLOSURE = "Le atiende el asistente virtual de inteligencia artificial de G. Elías y Muñoz Abogados.";
@@ -60,7 +64,7 @@ export async function runChatTurn(sessionId: string, userText: string): Promise<
   if (Object.values(found).some(Boolean)) await saveChatDatos(sessionId, found);
   const datosCliente = describeChatDatos(await getChatDatos(sessionId));
   const messages: ChatMessage[] = [
-    { role: "system", content: buildSystemPrompt(datosCliente) },
+    { role: "system", content: buildSystemPrompt(datosCliente, await huecosLibresTexto()) },
     ...history,
     { role: "user", content: userText },
   ];

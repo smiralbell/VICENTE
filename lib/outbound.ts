@@ -1,3 +1,4 @@
+import { huecosLibresTexto } from "./huecos";
 import { reportIncident } from "./incidents";
 import { query, getDashboardSettings } from "./db";
 import { requireEnv } from "./env";
@@ -96,7 +97,7 @@ export async function handleOutbound(payload: OutboundPayload): Promise<Outbound
       fromNumber: requireEnv("RETELL_FROM_NUMBER"),
       toNumber: phone.phone,
       agentId: requireEnv("RETELL_OUTBOUND_AGENT_ID"),
-      dynamicVariables: { name, phone: phone.phone, email, summaryCase: summary, source: "Formulario" },
+      dynamicVariables: { name, phone: phone.phone, email, summaryCase: summary, source: "Formulario", huecos_libres: await huecosLibresTexto() },
     });
     return "called";
   } catch (error) {

@@ -1,3 +1,4 @@
+import { huecosLibresTexto } from "./huecos";
 import { reportIncident } from "./incidents";
 import { query, transaction } from "./db";
 import { isSystemOn } from "./availability";
@@ -99,6 +100,7 @@ async function retryOnceOrGiveUp(call: RetellCall, phone: string): Promise<void>
         email: lead?.email ?? "",
         summaryCase: lead?.summary ?? "",
         source: "Formulario",
+        huecos_libres: await huecosLibresTexto(),
       },
     });
   } catch (error) {
@@ -389,6 +391,7 @@ export async function handleInboundCall(payload: InboundPayload) {
         phone: fromNumber,
         email: lead.email ?? "",
         summaryCase: lead.summary ?? "",
+        huecos_libres: await huecosLibresTexto(),
       },
     },
   };
