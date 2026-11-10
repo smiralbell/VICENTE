@@ -1,9 +1,7 @@
 import { reportIncident } from "@/lib/incidents";
 import { NextResponse } from "next/server";
-import { runChatTurn } from "@/lib/chat/agent";
+import { answerChat } from "@/lib/chat/answer";
 import { checkWebhookToken } from "@/lib/webhookAuth";
-import { isSystemOn } from "@/lib/availability";
-import { handleOfflineChat, OFFLINE_ASK } from "@/lib/chat/offline";
 
 export const dynamic = "force-dynamic";
 
@@ -28,18 +26,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Faltan message y sessionId" }, { status: 400 });
   }
 
-  // Sistema apagado: mensaje fijo, sin IA, y aviso al despacho. Si algo falla, al menos el mensaje fijo.
-  if (!(await isSystemOn())) {
-    try {
-      return NextResponse.json({ output: await handleOfflineChat(sessionId, text) });
-    } catch (error) {
-      reportIncident("api/chat", error);
-      return NextResponse.json({ output: OFFLINE_ASK });
-    }
-  }
-
   try {
-    const output = await runChatTurn(sessionId, text);
+    // Con el sistema apagado, mensaje fijo sin IA y aviso al despacho (ver answerChat).
+    const output = await answerChat(sessionId, text);
     return NextResponse.json({ output });
   } catch (error) {
     reportIncident("api/chat", error);
