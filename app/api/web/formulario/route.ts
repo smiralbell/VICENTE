@@ -36,7 +36,8 @@ export async function POST(request: Request) {
     });
     return json(request, { ok: true, status, message: "Workflow was started" });
   } catch (error) {
-    reportIncident("api/web/formulario", error);
-    return json(request, { error: "Processing failed" }, 500);
+    // Como n8n, a la web siempre se le contesta que se ha recibido: el fallo queda registrado para revisarlo.
+    reportIncident("api/web/formulario", error, { name: field(body.name || body.nombre, 200) });
+    return json(request, { ok: false, message: "Workflow was started" });
   }
 }

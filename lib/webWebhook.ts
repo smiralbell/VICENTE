@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { webhookTokens } from "./webhookAuth";
 
 // Utilidades de los webhooks públicos que llama la web del despacho (widget de chat y formulario), sin n8n en medio.
 
@@ -25,11 +26,18 @@ export function json(request: Request, body: unknown, status = 200): NextRespons
 }
 
 // La URL lleva una clave (?key=), igual que n8n usaba una ruta secreta: así nadie puede mandar formularios falsos
-// que acaben en llamadas. Si WEB_WEBHOOK_KEY no está puesta, no se exige.
+// que acaben en llamadas. La clave es WEB_WEBHOOK_KEY (admite varias separadas por comas); si no está puesta, vale
+// el token de siempre (WEBHOOK_TOKEN). Si no hay ninguno de los dos, no se exige.
+function webKeys(): string[] {
+  const own = (process.env.WEB_WEBHOOK_KEY ?? "").split(",").map((k) => k.trim()).filter(Boolean);
+  return own.length ? own : webhookTokens();
+}
+
 export function checkWebKey(request: Request): NextResponse | null {
-  const expected = process.env.WEB_WEBHOOK_KEY;
-  if (!expected) return null;
-  if (new URL(request.url).searchParams.get("key") !== expected) return json(request, { error: "Unauthorized" }, 401);
+  const keys = webKeys();
+  if (!keys.length) return null;
+  const key = new URL(request.url).searchParams.get("key") ?? "";
+  if (!keys.includes(key)) return json(request, { error: "Unauthorized" }, 401);
   return null;
 }
 
