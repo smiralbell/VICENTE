@@ -9,7 +9,8 @@ export function citasRecipients(): string {
     .flatMap((list) => list.split(","))
     .map((address) => address.trim())
     .filter(Boolean);
-  return Array.from(new Map(all.map((address) => [address.toLowerCase(), address])).values()).join(", ");
+  const seen = new Set<string>();
+  return all.filter((address) => !seen.has(address.toLowerCase()) && seen.add(address.toLowerCase())).join(", ");
 }
 
 let transporter: nodemailer.Transporter | null = null;
