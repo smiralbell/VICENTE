@@ -191,10 +191,14 @@ export async function handleRetellCallEvent(payload: RetellWebhookPayload): Prom
       const toolNames = Array.from(new Set(entries.filter((e) => e.role === "tool_call_invocation").map((e) => e.name ?? "").filter(Boolean)));
       try {
         const audit = await auditCall({ callId: call.call_id ?? "", phone, agentId: call.agent_id ?? "", transcript: entries, toolNames });
-        if (audit.user_requested_appointment_change) {
+        const booked = bookedInCall(entries, phone);
+        if (audit.cancelled_booking_in_call && booked.length) {
+          // Agendó y en la misma llamada dijo que no la quería: se anula la que se acaba de agendar, no otras que tuviera.
+          await applyCitaAnulada(call, booked[booked.length - 1].phone, booked.map((b) => b.when));
+        } else if (audit.user_requested_appointment_change && booked.length) {
           await applyCitaModificada(entries, phone);
-        } else if (audit.user_requested_appointment_cancel && !bookedInCall(entries, phone).length) {
-          // Anulación sin cita nueva: no hay herramienta en Retell, se detecta aquí y se avisa al despacho.
+        } else if ((audit.user_requested_appointment_cancel || audit.user_requested_appointment_change) && !booked.length) {
+          // Anulación sin cita nueva (o «posponer» sin fecha nueva): no hay herramienta en Retell, se detecta aquí y se avisa al despacho.
           await applyCitaAnulada(call, phone);
         }
       } catch (error) {
@@ -210,7 +214,7 @@ type AgendarToolArgs = { name?: string; phone?: string; email?: string; horario?
 // Llamadas cuya anulación ya se procesó (call_analyzed puede llegar más de una vez): así el despacho recibe un solo aviso.
 const cancelledCalls = new Set<string>();
 
-async function applyCitaAnulada(call: RetellCall, phone: string): Promise<void> {
+async function applyCitaAnulada(call: RetellCall, phone: string, soloEstas?: Date[]): Promise<void> {
   const callId = call.call_id ?? "";
   if (callId && cancelledCalls.has(callId)) return;
   if (callId) cancelledCalls.add(callId);
@@ -219,7 +223,8 @@ async function applyCitaAnulada(call: RetellCall, phone: string): Promise<void> 
     sessionId: phone,
     name: call.retell_llm_dynamic_variables?.name ?? "",
     email: call.retell_llm_dynamic_variables?.email ?? "",
-    canal: "por llamada",
+    canal: soloEstas ? "en la misma llamada en la que la agendó" : "por llamada",
+    soloEstas,
   });
 }
 

@@ -11,8 +11,12 @@ const PLACEHOLDER_NAME = /^(\[.*\]|\{\{.*\}\}|-+|n\/?a|null|undefined|no indicad
 export function isRealName(name: string): boolean {
   const text = name.trim();
   if (text.toLowerCase() === NAME_REFUSED.toLowerCase()) return true;
-  return text.length >= 2 && !PLACEHOLDER_NAME.test(text);
+  // «(sin nombre)», «(pendiente)», «Cliente sin nombre indicado»...: textos de relleno de la IA, no nombres.
+  const bare = text.replace(/^[\s()[\]{}«»"'.-]+|[\s()[\]{}«»"'.-]+$/g, "");
+  return text.length >= 2 && bare.length >= 2 && !PLACEHOLDER_NAME.test(text) && !PLACEHOLDER_NAME.test(bare) && !EXTRA_PLACEHOLDER.test(bare);
 }
+
+const EXTRA_PLACEHOLDER = /^((el|la|un|una)\s+)?(cliente|clienta|usuario|usuaria|persona|interesad[oa]|nombre)?\s*(sin nombre|no indicad[oa]|no facilitad[oa]|pendiente|desconocid[oa]|an[oó]nim[oa])(\s+(indicado|facilitado|de momento|todav[ií]a))?$|^(pendiente|nombre|an[oó]nim[oa]|desconocid[oa]|no consta)$/i;
 
 export const ASK_NAME =
   "Falta el nombre del cliente. Pídeselo de forma natural, por ejemplo: «¿Me indica su nombre, por favor?», y vuelve a usar la herramienta con su nombre real. " +
