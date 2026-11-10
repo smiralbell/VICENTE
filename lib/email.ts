@@ -2,6 +2,16 @@ import nodemailer from "nodemailer";
 import { requireEnv } from "./env";
 import { query } from "./db";
 
+// Destinatarios de todos los correos al despacho menos las derivaciones (nuevo lead, citas modificadas o anuladas, avisos):
+// EMAIL_NOTIFY_TO más EMAIL_CITAS_EXTRA_TO si está puesta (direcciones separadas por comas), sin repetir ninguna.
+export function citasRecipients(): string {
+  const all = [requireEnv("EMAIL_NOTIFY_TO"), process.env.EMAIL_CITAS_EXTRA_TO ?? ""]
+    .flatMap((list) => list.split(","))
+    .map((address) => address.trim())
+    .filter(Boolean);
+  return Array.from(new Map(all.map((address) => [address.toLowerCase(), address])).values()).join(", ");
+}
+
 let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter(): nodemailer.Transporter {

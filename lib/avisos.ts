@@ -1,5 +1,5 @@
 import { requireEnv } from "./env";
-import { sendMail } from "./email";
+import { citasRecipients, sendMail } from "./email";
 import { formatMadrid } from "./dateFormat";
 
 // Avisos al despacho cuando algo llega y la IA NO lo atiende (sistema apagado, horario laboral o número extranjero).
@@ -114,7 +114,7 @@ function renderAviso(aviso: Aviso): string {
 export async function sendAviso(aviso: Aviso): Promise<void> {
   const quien = aviso.name?.trim() || aviso.phone?.trim() || aviso.email?.trim() || "sin datos";
   await sendMail({
-    to: requireEnv("EMAIL_NOTIFY_TO"),
+    to: citasRecipients(),
     subject: `${CANAL[aviso.canal].asunto} · ${SUBJECT_REASON[aviso.motivo]}: ${quien}`,
     html: renderAviso(aviso),
   });

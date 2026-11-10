@@ -1,6 +1,6 @@
 import { query, transaction } from "./db";
 import { requireEnv } from "./env";
-import { sendMail } from "./email";
+import { citasRecipients, sendMail } from "./email";
 import { formatMadrid } from "./dateFormat";
 
 const LEADS_TABLE = "eliasymunozabogados_leads";
@@ -161,7 +161,7 @@ function renderCitaModificadaEmail(cita: CitaModificada): string {
 
 export async function sendCitaModificadaEmail(cita: CitaModificada): Promise<void> {
   await sendMail({
-    to: requireEnv("EMAIL_NOTIFY_TO"),
+    to: citasRecipients(),
     subject: `${cita.revisar ? "REVISAR CAMBIO DE CITA" : "CITA MODIFICADA"}: ${cita.name || cita.phone}`,
     html: renderCitaModificadaEmail(cita),
   });
@@ -223,7 +223,7 @@ export async function anularCitaSolicitada(input: { phone: string; sessionId: st
     return { resultado, futuras, lead };
   });
   await sendMail({
-    to: requireEnv("EMAIL_NOTIFY_TO"),
+    to: citasRecipients(),
     subject: `${ANULACION_SUBJECT[outcome.resultado]}: ${input.name || outcome.lead?.name || input.phone}`,
     html: renderCitaAnuladaEmail({
       resultado: outcome.resultado,

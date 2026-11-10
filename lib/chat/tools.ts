@@ -2,7 +2,7 @@ import { alternativas, huecoOcupado } from "../huecos";
 import { reportIncident } from "../incidents";
 import { query } from "../db";
 import { requireEnv } from "../env";
-import { sendMail } from "../email";
+import { citasRecipients, sendMail } from "../email";
 import { chatCompletion, createEmbedding, type ToolDefinition } from "../openai";
 import { validatePhone } from "../phone";
 import { handleDerivar } from "../derivar";
@@ -282,7 +282,7 @@ export async function runAgendarConsulta(args: AgendarArgs, sessionId: string): 
   }
 
   await sendMail({
-    to: requireEnv("EMAIL_NOTIFY_TO"),
+    to: citasRecipients(),
     subject: "NUEVO LEAD!!",
     html: renderLeadEmail({
       fecha: args.horario,
