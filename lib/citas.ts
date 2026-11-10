@@ -209,9 +209,11 @@ const ANULACION_SUBJECT: Record<AnulacionResult, string> = {
 
 // El cliente pide anular su cita (por llamada o por chat). Si tiene una sola cita futura, se anula; si tiene varias, no se toca
 // ninguna; si no tiene ninguna en el sistema, es de la agenda del despacho. En los tres casos se avisa al despacho.
-export async function anularCitaSolicitada(input: { phone: string; sessionId: string; name: string; email: string; canal: string }): Promise<AnulacionResult> {
+// Con soloEstas, solo cuentan las citas a esas horas (las que se agendaron en la misma llamada en la que el cliente las anuló).
+export async function anularCitaSolicitada(input: { phone: string; sessionId: string; name: string; email: string; canal: string; soloEstas?: Date[] }): Promise<AnulacionResult> {
   const outcome = await withCitasLock(input.phone, async (run) => {
-    const futuras = await getCitasFuturas(run, input.phone, input.sessionId);
+    const todas = await getCitasFuturas(run, input.phone, input.sessionId);
+    const futuras = input.soloEstas ? todas.filter((cita) => input.soloEstas!.some((when) => sameTime(cita, when))) : todas;
     if (futuras.length === 1) await anularCitas(run, futuras, null);
     const lead = (await run<{ name: string | null; email: string | null }>(
       `SELECT name, email FROM ${LEADS_TABLE} WHERE phone = $1 OR session_id = $1 OR session_id = $2 ORDER BY created_at DESC LIMIT 1`,
