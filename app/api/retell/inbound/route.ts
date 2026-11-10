@@ -23,7 +23,7 @@ async function unattendedReason(): Promise<MotivoAviso | null> {
 
 // Variables vacías pero definidas: así el agente nunca ve un marcador sin sustituir.
 function emptyVariables(phone: string) {
-  return { call_inbound: { dynamic_variables: { name: "", phone, email: "", summaryCase: "" } } };
+  return { call_inbound: { dynamic_variables: { name: "", phone, email: "", summaryCase: "", huecos_libres: "" } } };
 }
 
 export async function POST(request: Request) {
