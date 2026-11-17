@@ -1,7 +1,7 @@
 // Envío de errores de producción al CRM de Buffalo (proyecto de este cliente).
 // Nunca lanza excepciones: un fallo al avisar no debe romper el flujo principal.
 
-const DEFAULT_ENDPOINT = "https://n8n-crmv2-buffalo.zedf6b.easypanel.host/api/webhooks/incidents";
+const DEFAULT_ENDPOINT = "https://crm.buffaloia.com/api/webhooks/incidents";
 // Id del proyecto en el CRM de Buffalo. Debe ser siempre este.
 const CLIENT_ID = "504ba94c-2b9e-4f01-ab8b-65a2f8cdd25c";
 

@@ -5,7 +5,7 @@ export function getBuffaloTicketsWebhookUrl(): string {
   if (process.env.NODE_ENV === "development") {
     return "http://localhost:3000/api/webhooks/tickets";
   }
-  return "https://n8n-crmv2-buffalo.zedf6b.easypanel.host/api/webhooks/tickets";
+  return "https://crm.buffaloia.com/api/webhooks/tickets";
 }
 
 export function getBuffaloWebhookConfig():
