@@ -192,7 +192,7 @@ export async function handleRetellCallEvent(payload: RetellWebhookPayload): Prom
     if (entries.length) {
       const toolNames = Array.from(new Set(entries.filter((e) => e.role === "tool_call_invocation").map((e) => e.name ?? "").filter(Boolean)));
       try {
-        const audit = await auditCall({ callId: call.call_id ?? "", phone, agentId: call.agent_id ?? "", transcript: entries, toolNames });
+        const audit = await auditCall({ callId: call.call_id ?? "", phone, agentId: call.agent_id ?? "", transcript: entries, toolNames, disconnectionReason: call.disconnection_reason });
         const booked = bookedInCall(entries, phone);
         if (audit.cancelled_booking_in_call && booked.length) {
           // Agendó y en la misma llamada dijo que no la quería: se anula la que se acaba de agendar, no otras que tuviera.

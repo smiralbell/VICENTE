@@ -18,7 +18,28 @@ export type AuditInput = {
   agentId: string;
   transcript: TranscriptEntry[];
   toolNames: string[];
+  // Motivo de corte que da Retell (call.disconnection_reason), p. ej. "inactivity" o "user_hangup".
+  disconnectionReason?: string;
 };
+
+// Retell corta la llamada por inactividad cuando nadie habla durante un rato: siempre cuenta como fallo real.
+const INACTIVITY_REASON = "inactivity";
+const INACTIVITY_PROBLEM =
+  "La llamada se cortó por inactividad: el agente dejó de responder o el cliente se quedó en silencio.";
+
+// Cómo terminó la llamada según el modelo. Solo "fallo_real" cuenta como problema del agente.
+export type AuditOutcome = "cliente_desistio" | "comportamiento_esperado" | "fallo_real" | "sin_problema";
+
+const OUTCOME_LABELS: Record<AuditOutcome, string> = {
+  cliente_desistio: "[Cliente desistió]",
+  comportamiento_esperado: "[Comportamiento esperado]",
+  fallo_real: "[Fallo real]",
+  sin_problema: "[Sin problema]",
+};
+
+function parseOutcome(value: unknown): AuditOutcome | null {
+  return typeof value === "string" && Object.hasOwn(OUTCOME_LABELS, value) ? (value as AuditOutcome) : null;
+}
 
 export type AuditResult = {
   user_requested_derivation: boolean;
@@ -30,6 +51,7 @@ export type AuditResult = {
   used_appointment_tool: boolean;
   problem: string | null;
   explanation: string;
+  outcome: AuditOutcome | null;
 };
 
 // Las herramientas de Retell se identifican por su nombre. Si cambias el nombre
@@ -71,7 +93,15 @@ export async function auditCall(input: AuditInput): Promise<AuditResult> {
     "used_derivation_tool (boolean: el agente usó una herramienta de derivación), " +
     "used_appointment_tool (boolean: el agente usó una herramienta de agendar consulta), " +
     "problem (string o null: si el cliente lo pidió y el agente no usó la herramienta correspondiente, explícalo; si no hay problema, null), " +
-    "explanation (string breve en español).";
+    "explanation (string breve en español), " +
+    "outcome (uno de estos valores: " +
+    "\"cliente_desistio\": el cliente colgó, rechazó o dudó por el coste, dijo que lo pensaría o dejó de responder antes de agendar o derivar, y el agente iba bien; " +
+    "\"comportamiento_esperado\": el agente no usó herramienta pero actuó como debe (número equivocado, " +
+    "asunto que el despacho no lleva, anulación de cita, o agendó aunque también pidiera hablar con alguien, o derivó aunque pidiera consulta); " +
+    "\"fallo_real\": el cliente seguía dispuesto a continuar y el agente no hizo lo que tocaba (no usó la herramienta, se quedó callado, colgó, " +
+    "repitió preguntas sin avanzar o confirmó algo sin herramienta); también es fallo_real si alguien, sea cliente o no, " +
+    "pidió hablar con un abogado o con una persona del despacho y el agente no usó la herramienta de derivación ni agendó cita; " +
+    "\"sin_problema\": no pidió cita ni derivación, o se hizo todo).";
 
   const reply = await chatCompletion(requireEnv("OPENAI_CHAT_MODEL"), [
     { role: "system", content: instructions },
@@ -92,6 +122,7 @@ export async function auditCall(input: AuditInput): Promise<AuditResult> {
     used_appointment_tool: appointmentTool,
     problem: parsed.problem ?? null,
     explanation: parsed.explanation ?? "",
+    outcome: parseOutcome(parsed.outcome),
   };
 
   // Comprobación determinista: el modelo puede equivocarse con la lista de herramientas.
@@ -100,6 +131,20 @@ export async function auditCall(input: AuditInput): Promise<AuditResult> {
   if (result.user_requested_appointment && !result.used_appointment_tool) missing.push("cita");
   if (missing.length && !result.problem) {
     result.problem = `El cliente pidió ${missing.join(" y ")} y el agente no usó la herramienta correspondiente.`;
+  }
+
+  // Corte por inactividad: fallo real decida lo que decida el modelo. Va antes de la regla siguiente
+  // para que no se anule el problema. Si ya hay un problema escrito, se mantiene su texto.
+  if (input.disconnectionReason === INACTIVITY_REASON) {
+    result.outcome = "fallo_real";
+    if (!result.problem) result.problem = INACTIVITY_PROBLEM;
+  }
+
+  // Si el modelo dice que no fue un fallo del agente (cliente desistió, comportamiento esperado o sin problema),
+  // no se marca como problema. Sin outcome válido, todo queda como antes.
+  if (result.outcome && result.outcome !== "fallo_real") {
+    result.problem = null;
+    result.explanation = `${OUTCOME_LABELS[result.outcome]} ${result.explanation}`;
   }
 
   await query(
